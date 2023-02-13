@@ -1,39 +1,33 @@
 ﻿module Kobalt.Core.QueuePage
 
 open System
+open System.IO
 open System.Windows
 open System.Threading
 open Elmish
 open Elmish.WPF
 
+module DetailForm =
+  let init () : DetailForm * Cmd<DetailFormMsg> =
+    { Id = Guid.Empty; Text = "" }, Cmd.none
 
-type Queue =
-  { Id: Guid
-    FileName: string
-    IsSelected: bool }
+  let update msg (m: DetailForm) =
+    match msg with
+    | TextInput t -> { m with Text = t }, Cmd.none
+    | Submit -> m, Cmd.none
+    | Cancel -> m, Cmd.none
 
-type Model =
-  { QueueItems: Queue list
-    StatusMsg: string
-    Selected: int option }
+  let bindings () =
+    [ "TextInput" |> Binding.twoWay ((fun (m: DetailForm) -> m.Text), TextInput)
+      "Submit" |> Binding.cmd Submit
+      "Cancel" |> Binding.cmd Cancel ]
+
 
 let init () =
   { QueueItems = List.Empty
-    StatusMsg = ""
-    Selected = None },
+    Dialog = None
+    StatusMsg = "" },
   Cmd.none
-
-type Msg =
-  | RequestLoad
-  | LoadSuccess of string[]
-  | LoadCancelled
-  | LoadFailed of exn
-  | Select of int option
-  | SetIsSelected of Guid * bool
-  | RemoveItem
-  | ClearList
-  | GoNext
-
 
 let load () =
   Application.Current.Dispatcher.Invoke(fun () ->
@@ -47,7 +41,7 @@ let load () =
       let result = dlg.ShowDialog()
 
       if result.HasValue && result.Value then
-        return LoadSuccess dlg.FileNames
+        return QueuePageMsg.LoadSuccess dlg.FileNames
       else
         return LoadCancelled
     })
@@ -58,8 +52,10 @@ let loadSuccess files m =
     files
     |> Array.map (fun item ->
       { Id = Guid.NewGuid()
-        FileName = item
-        IsSelected = false })
+        FilePath = item
+        Title = None
+        IsSelected = false
+        IsModified = false })
     |> Array.toList
 
   { m with
@@ -67,27 +63,16 @@ let loadSuccess files m =
       StatusMsg = "File loaded" }
 
 
-let setIsSelected id value m =
-  let setValue item =
-    if item.Id = id then
-      { item with IsSelected = value }
-    else
-      item
-
-  { m with
-      QueueItems = m.QueueItems |> List.map (fun e -> setValue e) }
-
-
-let removeItem m =
-  { m with
-      QueueItems = m.QueueItems |> List.filter (fun e -> e.IsSelected = false)
-      StatusMsg = "Selected item(s) removed" }
+let getTitle (i: Queue) =
+  match i.Title with
+  | Some t -> t
+  | None -> Path.GetFileNameWithoutExtension(i.FilePath)
 
 
 let update msg m =
   match msg with
-  | RequestLoad -> m, Cmd.OfAsync.either load () id LoadFailed
-  | LoadSuccess f -> loadSuccess f m, Cmd.none
+  | QueuePageMsg.RequestLoad -> m, Cmd.OfAsync.either load () id QueuePageMsg.LoadFailed
+  | QueuePageMsg.LoadSuccess f -> loadSuccess f m, Cmd.none
   | LoadCancelled ->
     { m with
         StatusMsg = "File load cancelled" },
@@ -96,16 +81,66 @@ let update msg m =
     { m with
         StatusMsg = sprintf "File failed to load with exception %s: %s" (ex.GetType().Name) ex.Message },
     Cmd.none
-  | Select itemId -> { m with Selected = itemId }, Cmd.none
-  | SetIsSelected(itemId, isSelected) -> setIsSelected itemId isSelected m, Cmd.none
-  | RemoveItem -> removeItem m, Cmd.none
+  | Remove guid ->
+    { m with
+        QueueItems = m.QueueItems |> List.filter (fun e -> e.Id <> guid)
+        StatusMsg = "Item removed" },
+    Cmd.none
+  | Modify guid ->
+    let item = m.QueueItems |> List.find (fun e -> e.Id = guid)
+    let m', _ = DetailForm.init ()
+
+    { m with
+        QueueItems =
+          m.QueueItems
+          |> List.map (fun e -> if e.Id = guid then { e with IsModified = true } else e)
+        Dialog =
+          { m' with
+              Id = item.Id
+              Text = getTitle item }
+          |> DetailForm
+          |> Some },
+    Cmd.none
+  | ResetChange guid ->
+    { m with
+        QueueItems =
+          m.QueueItems
+          |> List.map (fun e -> if e.Id = guid then { e with Title = None } else e) },
+    Cmd.none
   | ClearList ->
     { m with
         QueueItems = List.empty
-        Selected = None
         StatusMsg = "List cleared" },
     Cmd.none
-  | GoNext -> m, Cmd.none
+  | GoNext -> m, Cmd.none // managed by parent model
+  | DetailFormMsg DetailFormMsg.Cancel -> { m with Dialog = None }, Cmd.none
+  | DetailFormMsg DetailFormMsg.Submit ->
+    let setTitle title =
+      match m.Dialog with
+      | Some(DetailForm m') -> Some m'.Text
+      | None -> title
+
+    let changeTitle i =
+      match i.IsModified with
+      | true ->
+        { i with
+            Title = setTitle i.Title
+            IsModified = false }
+      | false -> i
+
+    { m with
+        QueueItems = m.QueueItems |> List.map changeTitle
+        Dialog = None },
+    Cmd.none
+  | DetailFormMsg msg' ->
+    match m.Dialog with
+    | Some(DetailForm m') ->
+      let detailModel, detailMsg = DetailForm.update msg' m'
+
+      { m with
+          Dialog = detailModel |> DetailForm |> Some },
+      detailMsg
+    | _ -> m, Cmd.none
 
 
 let bindings () =
@@ -114,17 +149,31 @@ let bindings () =
       (fun m -> m.QueueItems),
       (fun e -> e.Id),
       (fun () ->
-        [ "ID" |> Binding.oneWay (fun (_, e) -> e.Id)
-          "FileName" |> Binding.oneWay (fun (_, e) -> e.FileName)
-          "IsSelected"
-          |> Binding.twoWay ((fun (_, e) -> e.IsSelected), (fun isSelected (_, e) -> SetIsSelected(e.Id, isSelected)))
-          "SelectedLabel"
-          |> Binding.oneWay (fun (_, e) -> if e.IsSelected then "SELECTED" else "") ])
+        [ "Title" |> Binding.oneWay (fun (_, e) -> getTitle e)
+          "Remove" |> Binding.cmd (fun (_, e) -> Remove e.Id)
+          "Modify" |> Binding.cmd (fun (_, e) -> Modify e.Id)
+          "Reset"
+          |> Binding.cmdIf (fun (_, (e: Queue)) ->
+            match e.Title with
+            | Some _ -> Some(ResetChange e.Id)
+            | None -> None )])
+    )
+    "DetailFormVisible"
+    |> Binding.oneWay (fun m ->
+      match m.Dialog with
+      | Some(DetailForm _) -> true
+      | _ -> false)
+    "DetailForm"
+    |> Binding.subModelOpt (
+      (fun m ->
+        match m.Dialog with
+        | Some(DetailForm m') -> Some m'
+        | _ -> None),
+      snd,
+      DetailFormMsg,
+      DetailForm.bindings
     )
     "StatusMsg" |> Binding.oneWay (fun m -> m.StatusMsg)
-    "Load" |> Binding.cmd RequestLoad
-    "SelectedItem"
-    |> Binding.subModelSelectedItem ("QueueItems", (fun m -> m.Selected), Select)
-    "RemoveItem" |> Binding.cmd RemoveItem
+    "Load" |> Binding.cmd QueuePageMsg.RequestLoad
     "ClearList" |> Binding.cmd ClearList
     "GoNext" |> Binding.cmd GoNext ]

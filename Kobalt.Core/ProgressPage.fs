@@ -5,27 +5,18 @@ open Elmish
 open Elmish.WPF
 
 
-type Model = 
-  { Text: string }
-
-type Msg =
-  | RequestLoad of string list
-  | LoadSuccess of string
-  | Update
-  | GoBack
-
 let init () =
-  { Text = "Processing..." }, 
+  { Items = List.Empty
+    Text = "Processing..." }, 
   Cmd.none
-
 
 let update msg m =
   match msg with
-  | RequestLoad items -> 
-    let load (dispatch: Msg -> unit) =
+  | RequestLoad  -> 
+    let load (dispatch: ProgressPageMsg -> unit) =
       async {
-        for item in items do
-          dispatch (LoadSuccess item)
+        for item in m.Items do
+          dispatch (LoadSuccess (Helpers.save item))
           do! Async.Sleep(TimeSpan.FromSeconds(1))
 
         dispatch (LoadSuccess "Done")
@@ -34,9 +25,9 @@ let update msg m =
     m, Cmd.ofSub load
   | LoadSuccess t -> { m with Text = sprintf "%s\r\n%s" m.Text t }, Cmd.none
   | Update -> { m with Text = "Updated" }, Cmd.none
-  | GoBack -> m, Cmd.none
+  | ProgressPageMsg.GoBack -> m, Cmd.none
 
 let bindings () =
   [ "Text" |> Binding.oneWay (fun m -> m.Text)
     "Update" |> Binding.cmd Update
-    "GoBack" |> Binding.cmd GoBack ]
+    "GoBack" |> Binding.cmd ProgressPageMsg.GoBack ]

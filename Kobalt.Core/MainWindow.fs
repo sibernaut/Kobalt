@@ -3,34 +3,12 @@
 open Elmish
 open Elmish.WPF
 
-type Pages =
-  | QueuePage of QueuePage.Model
-  | ProgressPage of ProgressPage.Model
-//| RulesPage of RulesPage.Model
-//| OptionsPage of OptionsPage.Model
-
-type Model =
-  { CurrentPage: Pages option
-    LastPage: Pages option }
-
 let init () =
   let model, _ = QueuePage.init ()
 
   { CurrentPage = Some <| QueuePage model
     LastPage = None },
   Cmd.none
-
-type Msg =
-  | GoBack
-  | ShowQueuePage
-  | QueuePageMsg of QueuePage.Msg
-  | ShowProgressPage
-  | ProgressPageMsg of ProgressPage.Msg
-
-let sendItems m =
-  match m.CurrentPage with
-  | Some(QueuePage m') -> m'.QueueItems |> List.map (fun i -> i.FileName)
-  | _ -> List.empty
 
 let update msg m =
   match msg with
@@ -45,7 +23,7 @@ let update msg m =
     { m with
         CurrentPage = Some <| QueuePage queueModel },
     Cmd.none
-  | QueuePageMsg QueuePage.GoNext -> m, Cmd.ofMsg ShowProgressPage
+  | QueuePageMsg QueuePageMsg.GoNext -> m, Cmd.ofMsg ShowProgressPage
   | QueuePageMsg msg' ->
     match m.CurrentPage with
     | Some(QueuePage m') ->
@@ -58,16 +36,21 @@ let update msg m =
   | ShowProgressPage ->
     let items =
       match m.CurrentPage with
-      | Some(QueuePage m') -> m'.QueueItems |> List.map (fun i -> i.FileName)
+      | Some(QueuePage m') ->
+        m'.QueueItems
+        |> List.map (fun i ->
+          { Title = QueuePage.getTitle i
+            Path = i.FilePath })
       | _ -> List.Empty
 
     let progressModel, _ = ProgressPage.init ()
+    let m' = { progressModel with Items = items }
 
     { m with
-        CurrentPage = Some <| ProgressPage progressModel
+        CurrentPage = Some <| ProgressPage m'
         LastPage = m.CurrentPage },
-    Cmd.ofMsg (ProgressPageMsg(ProgressPage.RequestLoad items))
-  | ProgressPageMsg ProgressPage.GoBack -> m, Cmd.ofMsg GoBack
+    Cmd.ofMsg (ProgressPageMsg ProgressPageMsg.RequestLoad)
+  | ProgressPageMsg ProgressPageMsg.GoBack -> m, Cmd.ofMsg GoBack
   | ProgressPageMsg msg' ->
     match m.CurrentPage with
     | Some(ProgressPage m') ->
