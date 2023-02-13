@@ -1,0 +1,22 @@
+﻿<UserControl x:Class="Kobalt.Views.ProgressPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Kobalt.Views"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="48"/>
+        </Grid.RowDefinitions>
+        <TextBox Grid.Row="0" Text="{Binding Text}" IsReadOnly="True"/>
+        <Border Grid.Row="1" Background="WhiteSmoke">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <Button Content="Update" Command="{Binding Update}" Width="74" Height="22"/>
+                <Button Content="Back" Command="{Binding GoBack}" Width="74" Height="22"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>
