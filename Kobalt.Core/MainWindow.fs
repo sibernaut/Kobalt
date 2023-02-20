@@ -3,6 +3,23 @@
 open Elmish
 open Elmish.WPF
 
+type Pages =
+  | QueuePage of QueuePage.Model
+  | ProgressPage of ProgressPage.Model
+//| RulesPage of RulesPage
+//| OptionsPage of OptionsPage
+
+type MainWindow =
+  { CurrentPage: Pages option
+    LastPage: Pages option }
+
+type Msg =
+  | GoBack
+  | ShowQueuePage
+  | QueuePageMsg of QueuePage.Msg
+  | ShowProgressPage
+  | ProgressPageMsg of ProgressPage.Msg
+
 let init () =
   let model, _ = QueuePage.init ()
 
@@ -23,7 +40,7 @@ let update msg m =
     { m with
         CurrentPage = Some <| QueuePage queueModel },
     Cmd.none
-  | QueuePageMsg QueuePageMsg.GoNext -> m, Cmd.ofMsg ShowProgressPage
+  | QueuePageMsg QueuePage.Msg.GoNext -> m, Cmd.ofMsg ShowProgressPage
   | QueuePageMsg msg' ->
     match m.CurrentPage with
     | Some(QueuePage m') ->
@@ -37,10 +54,8 @@ let update msg m =
     let items =
       match m.CurrentPage with
       | Some(QueuePage m') ->
-        m'.QueueItems
-        |> List.map (fun i ->
-          { Title = QueuePage.getTitle i
-            Path = i.FilePath })
+        m'.Items
+        |> List.map (fun i -> i.Item)
       | _ -> List.Empty
 
     let progressModel, _ = ProgressPage.init ()
@@ -49,8 +64,8 @@ let update msg m =
     { m with
         CurrentPage = Some <| ProgressPage m'
         LastPage = m.CurrentPage },
-    Cmd.ofMsg (ProgressPageMsg ProgressPageMsg.RequestLoad)
-  | ProgressPageMsg ProgressPageMsg.GoBack -> m, Cmd.ofMsg GoBack
+    Cmd.ofMsg (ProgressPageMsg ProgressPage.Msg.RequestLoad)
+  | ProgressPageMsg ProgressPage.Msg.GoBack -> m, Cmd.ofMsg GoBack
   | ProgressPageMsg msg' ->
     match m.CurrentPage with
     | Some(ProgressPage m') ->

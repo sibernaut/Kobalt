@@ -8,7 +8,8 @@
 
   <ItemGroup>
     <Compile Include="DomainTypes.fs" />
-    <Compile Include="Helpers.fs" />
+    <Compile Include="Functions.fs" />
+    <Compile Include="QueueItemDialog.fs" />
     <Compile Include="QueuePage.fs" />
     <Compile Include="ProgressPage.fs" />
     <Compile Include="MainWindow.fs" />

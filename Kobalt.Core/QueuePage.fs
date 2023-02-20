@@ -1,30 +1,33 @@
 ﻿module Kobalt.Core.QueuePage
 
-open System
-open System.IO
 open System.Windows
 open System.Threading
 open Elmish
 open Elmish.WPF
 
-module DetailForm =
-  let init () : DetailForm * Cmd<DetailFormMsg> =
-    { Id = Guid.Empty; Text = "" }, Cmd.none
 
-  let update msg (m: DetailForm) =
-    match msg with
-    | TextInput t -> { m with Text = t }, Cmd.none
-    | Submit -> m, Cmd.none
-    | Cancel -> m, Cmd.none
+type Dialog =
+  | ItemEditor of QueueItemDialog.Model
 
-  let bindings () =
-    [ "TextInput" |> Binding.twoWay ((fun (m: DetailForm) -> m.Text), TextInput)
-      "Submit" |> Binding.cmd Submit
-      "Cancel" |> Binding.cmd Cancel ]
+type Model =
+  { Items: QueueItemDialog.Model list
+    Dialog: Dialog option
+    StatusMsg: string }
 
+type Msg =
+  | RequestLoad
+  | LoadSuccess of string[]
+  | LoadCancelled
+  | LoadFailed of exn
+  | Remove of int
+  | Modify of int
+  | ResetChange of int
+  | ClearList
+  | GoNext
+  | ItemEditor of QueueItemDialog.Msg
 
 let init () =
-  { QueueItems = List.Empty
+  { Items = List.Empty
     Dialog = None
     StatusMsg = "" },
   Cmd.none
@@ -41,38 +44,24 @@ let load () =
       let result = dlg.ShowDialog()
 
       if result.HasValue && result.Value then
-        return QueuePageMsg.LoadSuccess dlg.FileNames
+        return Msg.LoadSuccess dlg.FileNames
       else
         return LoadCancelled
     })
 
 
-let loadSuccess files m =
-  let items =
-    files
-    |> Array.map (fun item ->
-      { Id = Guid.NewGuid()
-        FilePath = item
-        Title = None
-        IsSelected = false
-        IsModified = false })
-    |> Array.toList
-
-  { m with
-      QueueItems = items |> List.append m.QueueItems
-      StatusMsg = "File loaded" }
-
-
-let getTitle (i: Queue) =
-  match i.Title with
-  | Some t -> t
-  | None -> Path.GetFileNameWithoutExtension(i.FilePath)
-
-
 let update msg m =
   match msg with
-  | QueuePageMsg.RequestLoad -> m, Cmd.OfAsync.either load () id QueuePageMsg.LoadFailed
-  | QueuePageMsg.LoadSuccess f -> loadSuccess f m, Cmd.none
+  | Msg.RequestLoad -> m, Cmd.OfAsync.either load () id Msg.LoadFailed
+  | Msg.LoadSuccess f -> 
+    { m with
+        Items = 
+          f
+          |> Array.mapi (fun i x -> QueueItemDialog.create x i)
+          |> Array.toList
+          |> List.append m.Items
+        StatusMsg = "File(s) loaded" },
+    Cmd.none
   | LoadCancelled ->
     { m with
         StatusMsg = "File load cancelled" },
@@ -81,99 +70,92 @@ let update msg m =
     { m with
         StatusMsg = sprintf "File failed to load with exception %s: %s" (ex.GetType().Name) ex.Message },
     Cmd.none
-  | Remove guid ->
+  | Remove itemId ->
     { m with
-        QueueItems = m.QueueItems |> List.filter (fun e -> e.Id <> guid)
+        Items = 
+          m.Items 
+          |> List.filter (fun e -> e.Id <> itemId)
         StatusMsg = "Item removed" },
     Cmd.none
-  | Modify guid ->
-    let item = m.QueueItems |> List.find (fun e -> e.Id = guid)
-    let m', _ = DetailForm.init ()
+  | Modify itemId ->
+    let item = m.Items |> List.find (fun e -> e.Id = itemId)
+
+    { m with Dialog = Some(Dialog.ItemEditor item) },
+    Cmd.none
+  | ResetChange itemId ->
+    let reset (item: QueueItemDialog.Model) =
+      { item with Item = Video.resetTitle item.Item }      
 
     { m with
-        QueueItems =
-          m.QueueItems
-          |> List.map (fun e -> if e.Id = guid then { e with IsModified = true } else e)
-        Dialog =
-          { m' with
-              Id = item.Id
-              Text = getTitle item }
-          |> DetailForm
-          |> Some },
-    Cmd.none
-  | ResetChange guid ->
-    { m with
-        QueueItems =
-          m.QueueItems
-          |> List.map (fun e -> if e.Id = guid then { e with Title = None } else e) },
+        Items =
+          m.Items
+          |> List.map (fun e -> if e.Id = itemId then reset e else e) },
     Cmd.none
   | ClearList ->
     { m with
-        QueueItems = List.empty
+        Items = List.empty
         StatusMsg = "List cleared" },
     Cmd.none
-  | GoNext -> m, Cmd.none // managed by parent model
-  | DetailFormMsg DetailFormMsg.Cancel -> { m with Dialog = None }, Cmd.none
-  | DetailFormMsg DetailFormMsg.Submit ->
-    let setTitle title =
+  | ItemEditor QueueItemDialog.Cancel -> { m with Dialog = None }, Cmd.none
+  | ItemEditor QueueItemDialog.Submit ->
+    let setTitle (e: QueueItemDialog.Model) i =
       match m.Dialog with
-      | Some(DetailForm m') -> Some m'.Text
-      | None -> title
-
-    let changeTitle i =
-      match i.IsModified with
-      | true ->
-        { i with
-            Title = setTitle i.Title
-            IsModified = false }
-      | false -> i
+      | Some(Dialog.ItemEditor m') -> 
+        if m'.Id = i then 
+          { e with Item = m'.Item }
+        else
+          e
+      | None -> e
 
     { m with
-        QueueItems = m.QueueItems |> List.map changeTitle
+        Items = 
+          m.Items 
+          |> List.mapi (fun i e -> setTitle e i)
         Dialog = None },
     Cmd.none
-  | DetailFormMsg msg' ->
+  | ItemEditor msg' ->
     match m.Dialog with
-    | Some(DetailForm m') ->
-      let detailModel, detailMsg = DetailForm.update msg' m'
+    | Some(Dialog.ItemEditor m') ->
+      let detailModel, detailMsg = QueueItemDialog.update msg' m'
 
       { m with
-          Dialog = detailModel |> DetailForm |> Some },
+          Dialog = detailModel |> Dialog.ItemEditor |> Some },
       detailMsg
     | _ -> m, Cmd.none
+  | GoNext -> m, Cmd.none // managed by parent model
 
 
 let bindings () =
   [ "QueueItems"
     |> Binding.subModelSeq (
-      (fun m -> m.QueueItems),
+      (fun m -> m.Items),
       (fun e -> e.Id),
       (fun () ->
-        [ "Title" |> Binding.oneWay (fun (_, e) -> getTitle e)
-          "Remove" |> Binding.cmd (fun (_, e) -> Remove e.Id)
-          "Modify" |> Binding.cmd (fun (_, e) -> Modify e.Id)
+        [ "Title" |> Binding.oneWay (fun (_, e) -> Video.getTitle e.Item)
+          "Remove" |> Binding.cmd (fun (_, (e: QueueItemDialog.Model)) -> Remove e.Id)
+          "Modify" |> Binding.cmd (fun (_, (e: QueueItemDialog.Model)) -> Modify e.Id)
           "Reset"
-          |> Binding.cmdIf (fun (_, (e: Queue)) ->
-            match e.Title with
+          |> Binding.cmdIf (fun (_, (e: QueueItemDialog.Model)) ->
+            match e.Item.Title with
             | Some _ -> Some(ResetChange e.Id)
             | None -> None )])
     )
     "DetailFormVisible"
     |> Binding.oneWay (fun m ->
       match m.Dialog with
-      | Some(DetailForm _) -> true
+      | Some(Dialog.ItemEditor _) -> true
       | _ -> false)
     "DetailForm"
     |> Binding.subModelOpt (
       (fun m ->
         match m.Dialog with
-        | Some(DetailForm m') -> Some m'
+        | Some(Dialog.ItemEditor m') -> Some m'
         | _ -> None),
       snd,
-      DetailFormMsg,
-      DetailForm.bindings
+      ItemEditor,
+      QueueItemDialog.bindings
     )
     "StatusMsg" |> Binding.oneWay (fun m -> m.StatusMsg)
-    "Load" |> Binding.cmd QueuePageMsg.RequestLoad
+    "Load" |> Binding.cmd Msg.RequestLoad
     "ClearList" |> Binding.cmd ClearList
     "GoNext" |> Binding.cmd GoNext ]
