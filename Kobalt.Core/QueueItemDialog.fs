@@ -6,26 +6,26 @@ open Elmish.WPF
 
 type Model =
   { Id: int
-    Item: Video }
+    Item: Video
+    Title: string }
 
 type Msg =
   | TextInput of string
   | Submit
   | Cancel
 
-let create path itemId =
+let create video title itemId =
   { Id = itemId
-    Item = Video.create path }
+    Item = video 
+    Title = title }
 
-let setTitle t m = { m with Item = Video.updateTitle t m.Item }
-
-let update msg m =
+let update msg (m: Model) =
   match msg with
-  | TextInput t -> setTitle t m, Cmd.none
+  | TextInput t -> { m with Title = t }, Cmd.none
   | Submit -> m, Cmd.none
   | Cancel -> m, Cmd.none
 
 let bindings () =
-  [ "TextInput" |> Binding.twoWay ((fun m -> Video.getTitle m.Item), TextInput)
+  [ "TextInput" |> Binding.twoWay ((fun m -> m.Title), TextInput)
     "Submit" |> Binding.cmd Submit // managed by parent
     "Cancel" |> Binding.cmd Cancel ] // managed by parent

@@ -7,6 +7,7 @@ open Elmish.WPF
 
 type Model = 
   { Items: Video list
+    Config: Config
     Text: string }
 
 type Msg =
@@ -15,13 +16,14 @@ type Msg =
   | Update
   | GoBack
 
-let init () =
+let init config =
   { Items = List.Empty
+    Config = config
     Text = "Processing..." }, 
   Cmd.none
 
-let save (item: Video) =
-  let title, path = Video.getTitle item, item.FilePath
+let save config (item: Video) =
+  let title, path = Video.getTitle config.Rules item, item.FilePath
   let ext = System.IO.Path.GetExtension(path)
 
   match ext with
@@ -53,7 +55,7 @@ let update msg m =
     let load (dispatch: Msg -> unit) =
       async {
         for item in m.Items do
-          dispatch (LoadSuccess (save item))
+          dispatch (LoadSuccess (save m.Config item))
           do! Async.Sleep(TimeSpan.FromSeconds(1))
 
         dispatch (LoadSuccess "Done")

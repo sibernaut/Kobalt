@@ -12,6 +12,7 @@ type Dialog =
 type Model =
   { Items: QueueItemDialog.Model list
     Dialog: Dialog option
+    Config: Config
     StatusMsg: string }
 
 type Msg =
@@ -24,11 +25,13 @@ type Msg =
   | ResetChange of int
   | ClearList
   | GoNext
+  | GoRules
   | ItemEditor of QueueItemDialog.Msg
 
-let init () =
+let init config =
   { Items = List.Empty
     Dialog = None
+    Config = config
     StatusMsg = "" },
   Cmd.none
 
@@ -57,7 +60,10 @@ let update msg m =
     { m with
         Items = 
           f
-          |> Array.mapi (fun i x -> QueueItemDialog.create x i)
+          |> Array.mapi 
+            (fun i x -> 
+              let video = Video.create x
+              QueueItemDialog.create video (Video.getTitle m.Config.Rules video) i)
           |> Array.toList
           |> List.append m.Items
         StatusMsg = "File(s) loaded" },
@@ -102,7 +108,11 @@ let update msg m =
       match m.Dialog with
       | Some(Dialog.ItemEditor m') -> 
         if m'.Id = i then 
-          { e with Item = m'.Item }
+          let video = 
+            match m'.Title with
+            | "" -> e.Item
+            | _ -> { e.Item with Title = Some m'.Title }
+          { e with Item = video }
         else
           e
       | None -> e
@@ -123,6 +133,7 @@ let update msg m =
       detailMsg
     | _ -> m, Cmd.none
   | GoNext -> m, Cmd.none // managed by parent model
+  | GoRules -> m, Cmd.none // managed by parent model
 
 
 let bindings () =
@@ -131,7 +142,7 @@ let bindings () =
       (fun m -> m.Items),
       (fun e -> e.Id),
       (fun () ->
-        [ "Title" |> Binding.oneWay (fun (_, e) -> Video.getTitle e.Item)
+        [ "Title" |> Binding.oneWay (fun (m, e) -> Video.getTitle m.Config.Rules e.Item)
           "Remove" |> Binding.cmd (fun (_, (e: QueueItemDialog.Model)) -> Remove e.Id)
           "Modify" |> Binding.cmd (fun (_, (e: QueueItemDialog.Model)) -> Modify e.Id)
           "Reset"
@@ -158,4 +169,5 @@ let bindings () =
     "StatusMsg" |> Binding.oneWay (fun m -> m.StatusMsg)
     "Load" |> Binding.cmd Msg.RequestLoad
     "ClearList" |> Binding.cmd ClearList
-    "GoNext" |> Binding.cmd GoNext ]
+    "GoNext" |> Binding.cmd GoNext
+    "GoRules" |> Binding.cmd GoRules ]

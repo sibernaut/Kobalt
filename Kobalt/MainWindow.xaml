@@ -24,6 +24,13 @@
             Visibility="{Binding DataContext.QueuePageVisible,
                          RelativeSource={RelativeSource AncestorType=Grid},
                          Converter={StaticResource VisibilityConverter}}"/>
+        <views:RulesPage
+            DataContext="{Binding RulesPage}"
+            d:DataContext="{Binding DataContext.RulesPage,
+                            RelativeSource={RelativeSource AncestorType=Grid}}"
+            Visibility="{Binding DataContext.RulesPageVisible,
+                         RelativeSource={RelativeSource AncestorType=Grid},
+                         Converter={StaticResource VisibilityConverter}}"/>
         <views:ProgressPage
             DataContext="{Binding ProgressPage}"
             d:DataContext="{Binding DataContext.ProgressPage,

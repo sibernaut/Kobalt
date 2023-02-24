@@ -11,6 +11,8 @@
     <Compile Include="Functions.fs" />
     <Compile Include="QueueItemDialog.fs" />
     <Compile Include="QueuePage.fs" />
+    <Compile Include="RuleEditor.fs" />
+    <Compile Include="RulesPage.fs" />
     <Compile Include="ProgressPage.fs" />
     <Compile Include="MainWindow.fs" />
     <Compile Include="App.fs" />
@@ -18,6 +20,7 @@
 
   <ItemGroup>
     <PackageReference Include="Elmish.WPF" Version="3.5.8" />
+    <PackageReference Include="FSharp.SystemTextJson" Version="1.1.23" />
     <PackageReference Include="TagLibSharp" Version="2.3.0" />
   </ItemGroup>
 

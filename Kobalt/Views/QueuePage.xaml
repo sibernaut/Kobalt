@@ -45,10 +45,15 @@
                 </StackPanel>
             </Grid>
             <Border Grid.Row="1" Background="WhiteSmoke">
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button Content="Load" Command="{Binding Load}" Width="74" Height="22"/>
-                    <Button Content="N_ext" Command="{Binding GoNext}" Width="74" Height="22"/>
-                </StackPanel>
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" HorizontalAlignment="Left">
+                        <Button Content="Rules" Command="{Binding GoRules}" Width="74" Height="22"/>
+                    </StackPanel>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="Load" Command="{Binding Load}" Width="74" Height="22"/>
+                        <Button Content="N_ext" Command="{Binding GoNext}" Width="74" Height="22"/>
+                    </StackPanel>
+                </DockPanel>
             </Border>
             <Border Grid.Row="2" BorderBrush="Black" BorderThickness="1" Background="WhiteSmoke">
                 <TextBlock Text="{Binding StatusMsg}"/>
