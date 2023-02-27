@@ -1,12 +1,12 @@
 ﻿module Kobalt.Core.QueueItemDialog
 
+open System
 open Elmish
 open Elmish.WPF
 
 
 type Model =
-  { Id: int
-    Item: Video
+  { Id: Guid
     Title: string }
 
 type Msg =
@@ -14,9 +14,8 @@ type Msg =
   | Submit
   | Cancel
 
-let create video title itemId =
+let create  title itemId =
   { Id = itemId
-    Item = video 
     Title = title }
 
 let update msg (m: Model) =

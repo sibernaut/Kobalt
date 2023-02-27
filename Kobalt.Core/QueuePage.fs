@@ -1,5 +1,6 @@
 ﻿module Kobalt.Core.QueuePage
 
+open System
 open System.Windows
 open System.Threading
 open Elmish
@@ -9,8 +10,12 @@ open Elmish.WPF
 type Dialog =
   | ItemEditor of QueueItemDialog.Model
 
+type Item =
+  { Id: Guid
+    Video: Video }
+
 type Model =
-  { Items: QueueItemDialog.Model list
+  { Items: Item list
     Dialog: Dialog option
     Config: Config
     StatusMsg: string }
@@ -20,9 +25,9 @@ type Msg =
   | LoadSuccess of string[]
   | LoadCancelled
   | LoadFailed of exn
-  | Remove of int
-  | Modify of int
-  | ResetChange of int
+  | Remove of Guid
+  | Modify of Guid
+  | ResetChange of Guid
   | ClearList
   | GoNext
   | GoRules
@@ -60,10 +65,10 @@ let update msg m =
     { m with
         Items = 
           f
-          |> Array.mapi 
-            (fun i x -> 
-              let video = Video.create x
-              QueueItemDialog.create video (Video.getTitle m.Config.Rules video) i)
+          |> Array.map 
+            (fun x -> 
+              { Id = Guid.NewGuid()
+                Video = Video.create x })
           |> Array.toList
           |> List.append m.Items
         StatusMsg = "File(s) loaded" },
@@ -84,18 +89,25 @@ let update msg m =
         StatusMsg = "Item removed" },
     Cmd.none
   | Modify itemId ->
-    let item = m.Items |> List.find (fun e -> e.Id = itemId)
+    let item = 
+      m.Items 
+      |> List.find (fun e -> e.Id = itemId)
+      |> (fun x -> 
+        let title = Video.getTitle m.Config.Rules x.Video
+        QueueItemDialog.create title x.Id)
 
     { m with Dialog = Some(Dialog.ItemEditor item) },
     Cmd.none
   | ResetChange itemId ->
-    let reset (item: QueueItemDialog.Model) =
-      { item with Item = Video.resetTitle item.Item }      
-
     { m with
         Items =
           m.Items
-          |> List.map (fun e -> if e.Id = itemId then reset e else e) },
+          |> List.map 
+            (fun e -> 
+              if e.Id = itemId then 
+                { e with Video = Video.resetTitle e.Video } 
+              else 
+                e) },
     Cmd.none
   | ClearList ->
     { m with
@@ -104,23 +116,18 @@ let update msg m =
     Cmd.none
   | ItemEditor QueueItemDialog.Cancel -> { m with Dialog = None }, Cmd.none
   | ItemEditor QueueItemDialog.Submit ->
-    let setTitle (e: QueueItemDialog.Model) i =
+    let setTitle e =
       match m.Dialog with
       | Some(Dialog.ItemEditor m') -> 
-        if m'.Id = i then 
-          let video = 
-            match m'.Title with
-            | "" -> e.Item
-            | _ -> { e.Item with Title = Some m'.Title }
-          { e with Item = video }
-        else
+        let guid, title = m'.Id, m'.Title
+        if e.Id = guid then 
+          { e with Video = Video.updateTitle title e.Video }
+         else 
           e
       | None -> e
 
     { m with
-        Items = 
-          m.Items 
-          |> List.mapi (fun i e -> setTitle e i)
+        Items = m.Items |> List.map setTitle
         Dialog = None },
     Cmd.none
   | ItemEditor msg' ->
@@ -142,12 +149,12 @@ let bindings () =
       (fun m -> m.Items),
       (fun e -> e.Id),
       (fun () ->
-        [ "Title" |> Binding.oneWay (fun (m, e) -> Video.getTitle m.Config.Rules e.Item)
-          "Remove" |> Binding.cmd (fun (_, (e: QueueItemDialog.Model)) -> Remove e.Id)
-          "Modify" |> Binding.cmd (fun (_, (e: QueueItemDialog.Model)) -> Modify e.Id)
+        [ "Title" |> Binding.oneWay (fun (m, e) -> Video.getTitle m.Config.Rules e.Video)
+          "Remove" |> Binding.cmd (fun (_, e) -> Remove e.Id)
+          "Modify" |> Binding.cmd (fun (_, e) -> Modify e.Id)
           "Reset"
-          |> Binding.cmdIf (fun (_, (e: QueueItemDialog.Model)) ->
-            match e.Item.Title with
+          |> Binding.cmdIf (fun (_, e) ->
+            match e.Video.Title with
             | Some _ -> Some(ResetChange e.Id)
             | None -> None )])
     )

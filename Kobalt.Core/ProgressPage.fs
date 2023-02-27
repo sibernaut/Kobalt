@@ -5,9 +5,12 @@ open System.Diagnostics
 open Elmish
 open Elmish.WPF
 
+type Item =
+  { Path: string
+    Title: string }
+
 type Model = 
-  { Items: Video list
-    Config: Config
+  { Items: Item list
     Text: string }
 
 type Msg =
@@ -16,14 +19,16 @@ type Msg =
   | Update
   | GoBack
 
-let init config =
-  { Items = List.Empty
-    Config = config
+let createItem path title =
+  { Path = path
+    Title = title }
+
+let init items =
+  { Items = items
     Text = "Processing..." }, 
   Cmd.none
 
-let save config (item: Video) =
-  let title, path = Video.getTitle config.Rules item, item.FilePath
+let save (path: string) title =
   let ext = System.IO.Path.GetExtension(path)
 
   match ext with
@@ -55,7 +60,7 @@ let update msg m =
     let load (dispatch: Msg -> unit) =
       async {
         for item in m.Items do
-          dispatch (LoadSuccess (save m.Config item))
+          dispatch (LoadSuccess (save item.Path item.Title))
           do! Async.Sleep(TimeSpan.FromSeconds(1))
 
         dispatch (LoadSuccess "Done")

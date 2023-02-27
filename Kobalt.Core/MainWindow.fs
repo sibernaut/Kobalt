@@ -61,11 +61,10 @@ let update msg m =
       match m.CurrentPage with
       | Some(QueuePage m') ->
         m'.Items
-        |> List.map (fun i -> i.Item)
+        |> List.map (fun i -> ProgressPage.createItem i.Video.FilePath (Video.getTitle m.Config.Rules i.Video))
       | _ -> List.Empty
 
-    let progressModel, _ = ProgressPage.init m.Config
-    let m' = { progressModel with Items = items }
+    let m', _ = ProgressPage.init items
 
     { m with
         CurrentPage = Some <| ProgressPage m'
@@ -92,7 +91,7 @@ let update msg m =
       match m.CurrentPage with
       | Some(RulesPage m') -> 
           m'.Items 
-          |> List.map (fun r -> r.Item)
+          |> List.map (fun r -> r.Rule)
       | _ -> m.Config.Rules
     let config = { m.Config with Rules = rules }
     let queuePage : Pages option = 

@@ -8,8 +8,12 @@ open Elmish.WPF
 type Dialog =
   | ItemEditor of RuleEditor.Model
 
+type Item =
+  { Id: Guid 
+    Rule: Rule }
+
 type Model =
-  { Items: RuleEditor.Model list
+  { Items: Item list
     Selected: Guid option
     Dialog: Dialog option }
 
@@ -26,10 +30,21 @@ type Msg =
   | ItemEditor of RuleEditor.Msg
 
 let init rules =
-  { Items = rules |> List.map (fun e -> RuleEditor.init e (Guid.NewGuid()))
+  { Items = rules |> List.map (fun e -> { Id = Guid.NewGuid(); Rule = e })
     Selected = None
     Dialog = None },
   Cmd.none
+
+let toRule (model: RuleEditor.Model) = 
+  match model.IsRegex with
+  | false -> 
+    { Id = model.Id
+      Rule = Rule.create model.SearchFor model.ReplaceWith }
+  | true -> 
+    { Id = model.Id
+      Rule = 
+        Rule.create model.SearchFor model.ReplaceWith
+        |> Rule.setRegex }
 
 let update msg m =
   match msg with
@@ -38,7 +53,7 @@ let update msg m =
   | CloseDialog -> { m with Dialog = None }, Cmd.none
   | AddNew -> 
     { m with 
-        Dialog = Some(Dialog.ItemEditor (RuleEditor.init Rule.empty (Guid.NewGuid())))
+        Dialog = Some(Dialog.ItemEditor (RuleEditor.initEmpty))
         Selected = None }, 
     Cmd.none
   | Create -> 
@@ -46,7 +61,7 @@ let update msg m =
     | None -> m, Cmd.none
     | Some(Dialog.ItemEditor m') ->
       { m with 
-          Items = m.Items @ [ m']
+          Items = m.Items @ [ toRule m' ]
           Dialog = None },
       Cmd.ofMsg CloseDialog
   | SetSelected i -> { m with Selected = i }, Cmd.none
@@ -54,7 +69,13 @@ let update msg m =
     { m with Dialog = 
               m.Items 
               |> List.find (fun e -> e.Id = m.Selected.Value)
-              |> (fun r -> RuleEditor.init r.Item r.Id)
+              |> (fun r -> 
+                  let search, replace, isregex =
+                    match r.Rule with
+                    | Regular p -> p.Search, p.Replace, false
+                    | Regex p -> p.Search, p.Replace, true
+
+                  RuleEditor.init search replace isregex r.Id)
               |> Dialog.ItemEditor 
               |> Some }, 
     Cmd.none
@@ -64,12 +85,9 @@ let update msg m =
       { m with
           Items = 
             m.Items
-            |> List.map (fun e -> 
-                if e.Id = m.Selected.Value then
-                  { e with Item = m'.Item }
-                else
-                  e)
-          Dialog = None }, Cmd.none
+            |> List.map (fun e -> if e.Id = m'.Id then toRule m' else e)
+          Dialog = None }, 
+      Cmd.none
     | None -> m, Cmd.ofMsg CloseDialog
   | Remove -> 
     { m with Items = 
@@ -99,8 +117,8 @@ let bindings () =
       (fun e -> e.Id),
       (fun () ->
         [ "ID" |> Binding.oneWay (fun (_, e) -> e.Id)
-          "SearchFor" |> Binding.oneWay (fun (_, e) -> Rule.getField e.Item |> fst)
-          "ReplaceWith" |> Binding.oneWay (fun (_, e) -> Rule.getField e.Item |> snd) ]))
+          "SearchFor" |> Binding.oneWay (fun (_, e) -> Rule.getField e.Rule |> fst)
+          "ReplaceWith" |> Binding.oneWay (fun (_, e) -> Rule.getField e.Rule |> snd) ]))
     "Selected" |> Binding.twoWayOpt((fun m -> m.Selected), SetSelected)
     "AddNew" |> Binding.cmd AddNew
     "Modify" |> Binding.cmdIf(Modify, (fun m -> m.Selected.IsSome))
