@@ -82,7 +82,8 @@ module Video =
 module Config =
 
   let empty =
-    { Rules = List.Empty }
+    { Rules = List.Empty 
+      AutoScanPath = None }
 
   let options =
     let jsonOpt = JsonSerializerOptions()

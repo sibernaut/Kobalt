@@ -38,5 +38,12 @@
             Visibility="{Binding DataContext.ProgressPageVisible,
                          RelativeSource={RelativeSource AncestorType=Grid},
                          Converter={StaticResource VisibilityConverter}}"/>
+        <views:OptionsPage
+            DataContext="{Binding OptionsPage}"
+            d:DataContext="{Binding DataContext.OptionsPage,
+                            RelativeSource={RelativeSource AncestorType=Grid}}"
+            Visibility="{Binding DataContext.OptionsPageVisible,
+                         RelativeSource={RelativeSource AncestorType=Grid},
+                         Converter={StaticResource VisibilityConverter}}"/>
     </Grid>
 </Window>

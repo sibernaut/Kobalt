@@ -31,6 +31,7 @@ type Msg =
   | ClearList
   | GoNext
   | GoRules
+  | GoOptions
   | ItemEditor of QueueItemDialog.Msg
 
 let init config =
@@ -141,6 +142,7 @@ let update msg m =
     | _ -> m, Cmd.none
   | GoNext -> m, Cmd.none // managed by parent model
   | GoRules -> m, Cmd.none // managed by parent model
+  | GoOptions -> m, Cmd.none // managed by parent model
 
 
 let bindings () =
@@ -177,4 +179,5 @@ let bindings () =
     "Load" |> Binding.cmd Msg.RequestLoad
     "ClearList" |> Binding.cmd ClearList
     "GoNext" |> Binding.cmd GoNext
-    "GoRules" |> Binding.cmd GoRules ]
+    "GoRules" |> Binding.cmd GoRules
+    "GoOptions" |> Binding.cmd GoOptions ]

@@ -1,5 +1,7 @@
 ﻿module Kobalt.Core.MainWindow
 
+open System
+open System.IO
 open Elmish
 open Elmish.WPF
 
@@ -7,7 +9,7 @@ type Pages =
   | QueuePage of QueuePage.Model
   | ProgressPage of ProgressPage.Model
   | RulesPage of RulesPage.Model
-//| OptionsPage of OptionsPage
+  | OptionsPage of OptionsPage.Model
 
 type MainWindow =
   { CurrentPage: Pages option
@@ -22,15 +24,16 @@ type Msg =
   | ProgressPageMsg of ProgressPage.Msg
   | ShowRulesPage
   | RulesPageMsg of RulesPage.Msg
+  | ShowOptionsPage
+  | OptionsPageMsg of OptionsPage.Msg
 
 let init () =
   let config = Config.load ()
-  let model, _ = QueuePage.init config
 
-  { CurrentPage = Some <| QueuePage model
+  { CurrentPage = None
     LastPage = None 
     Config = config },
-  Cmd.none
+  Cmd.ofMsg ShowQueuePage
 
 let update msg m =
   match msg with
@@ -40,13 +43,26 @@ let update msg m =
         LastPage = m.CurrentPage },
     Cmd.none
   | ShowQueuePage ->
-    let queueModel, _ = QueuePage.init m.Config
+    let model, _ = QueuePage.init m.Config
+    let cmd = 
+      match m.Config.AutoScanPath with
+      | None -> Cmd.none
+      | Some p ->
+        let isVideo (path: string) =
+          let ext = Path.GetExtension(path)
+          ext = ".mp4" || ext = ".mkv"
 
-    { m with
-        CurrentPage = Some <| QueuePage queueModel },
-    Cmd.none
+        let files = 
+          Directory.EnumerateFiles(p)
+          |> Seq.filter isVideo
+          |> Seq.toArray
+        
+        Cmd.ofMsg (QueuePageMsg(QueuePage.LoadSuccess files))
+
+    { m with CurrentPage = Some(QueuePage model) }, cmd
   | QueuePageMsg QueuePage.Msg.GoNext -> m, Cmd.ofMsg ShowProgressPage
   | QueuePageMsg QueuePage.Msg.GoRules -> m, Cmd.ofMsg ShowRulesPage
+  | QueuePageMsg QueuePage.Msg.GoOptions -> m, Cmd.ofMsg ShowOptionsPage
   | QueuePageMsg msg' ->
     match m.CurrentPage with
     | Some(QueuePage m') ->
@@ -114,6 +130,43 @@ let update msg m =
         CurrentPage = rulesModel |> RulesPage |> Some },
     Cmd.map RulesPageMsg rulesMsg
     | _ -> m, Cmd.none
+  | ShowOptionsPage ->
+    { m with
+        CurrentPage = 
+          let path = 
+            match m.Config.AutoScanPath with
+            | None -> OptionsPage.init String.Empty
+            | Some t -> OptionsPage.init t
+          
+          path
+          |> OptionsPage 
+          |> Some
+        LastPage = m.CurrentPage },
+    Cmd.none
+  | OptionsPageMsg OptionsPage.GoBack -> m, Cmd.ofMsg GoBack
+  | OptionsPageMsg OptionsPage.Save -> 
+    let model = 
+      match m.CurrentPage with
+      | Some(OptionsPage m') ->
+        let path = 
+          match m'.AutoScanPath |> String.IsNullOrWhiteSpace with
+          | true -> None
+          | false -> Some m'.AutoScanPath
+
+        let config = { m.Config with AutoScanPath = path }
+        Config.save config
+        { m with Config = config } 
+      | _ -> m
+
+    model, Cmd.ofMsg GoBack
+  | OptionsPageMsg msg' ->
+    match m.CurrentPage with
+    | Some(OptionsPage m') ->
+      let model, message = OptionsPage.update msg' m'
+
+      { m with CurrentPage = model |> OptionsPage |> Some },
+      Cmd.map OptionsPageMsg message
+    | _ -> m, Cmd.none
 
 let bindings () =
   [ "QueuePageVisible"
@@ -157,6 +210,20 @@ let bindings () =
         | _ -> None),
       snd,
       RulesPageMsg,
-      RulesPage.bindings) ]
+      RulesPage.bindings)
+    "OptionsPageVisible"
+    |> Binding.oneWay (fun m ->
+      match m.CurrentPage with
+      | Some(OptionsPage _) -> true
+      | _ -> false)
+    "OptionsPage"
+    |> Binding.subModelOpt (
+      (fun m ->
+        match m.CurrentPage with
+        | Some(OptionsPage m') -> Some m'
+        | _ -> None),
+      snd,
+      OptionsPageMsg,
+      OptionsPage.bindings) ]
 
 let designVm = ViewModel.designInstance (init () |> fst) (bindings ())

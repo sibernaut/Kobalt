@@ -19,4 +19,5 @@ module Domains =
   type Rules = Rule list
 
   type Config = 
-    { Rules: Rules }
+    { Rules: Rules
+      AutoScanPath: string option }
