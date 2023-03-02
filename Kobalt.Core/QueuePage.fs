@@ -140,21 +140,25 @@ let update msg m =
   | CloseDialog -> { m with Dialog = None }, Cmd.none
   | ItemEditor QueueItemDialog.Cancel -> m, Cmd.ofMsg CloseDialog
   | ItemEditor QueueItemDialog.Submit ->
-    let setTitle e =
-      match m.Dialog with
-      | Some(Dialog.ItemEditor m') -> 
+    match m.Dialog with
+    | Some(Dialog.ItemEditor m') -> 
+      let isEmpty = m'.Title |> String.IsNullOrWhiteSpace
+      let setTitle e =
         let update t e =
           { e with Video = Video.updateTitle t e.Video }
         
         match e.Id with
         | guid when guid = m'.Id -> update m'.Title e
         | _ -> e
-      | None -> e
 
-    { m with Items = 
-              m.Items 
-              |> List.map setTitle },
-    Cmd.ofMsg CloseDialog
+      let items =
+        m.Items 
+        |> List.map setTitle
+
+      match isEmpty with
+      | false -> { m with Items = items }, Cmd.ofMsg CloseDialog
+      | true -> m, Cmd.none
+    | None -> m, Cmd.none
   | ItemEditor msg' ->
     match m.Dialog with
     | Some(Dialog.ItemEditor m') ->
