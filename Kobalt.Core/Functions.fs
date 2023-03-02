@@ -1,6 +1,7 @@
 ﻿namespace Kobalt.Core
 
 open System
+open System.Diagnostics
 open System.IO
 type Rgx = System.Text.RegularExpressions.Regex
 open System.Text.Json
@@ -67,16 +68,44 @@ module Video =
     { FilePath = path
       Title = None }
 
-  let getTitle rules v =
-    match v.Title with
+  let getTitle rules video =
+    match video.Title with
     | Some t -> t
     | None -> 
-      let title = Path.GetFileNameWithoutExtension(v.FilePath)
+      let title = Path.GetFileNameWithoutExtension(video.FilePath)
       Rules.apply rules title
 
-  let updateTitle t v = { v with Title = Some t }
+  let updateTitle title video = { video with Title = Some title }
 
-  let resetTitle v = { v with Title = None }
+  let resetTitle video = { video with Title = None }
+
+  let save rules video =
+    let path = video.FilePath
+    let title = getTitle rules video
+    let ext = Path.GetExtension(path)
+
+    match ext with
+    | ".mp4" ->
+      let tfile = TagLib.File.Create(path)
+      tfile.Tag.Title <- title
+      tfile.Save()
+      sprintf "%s" title
+    | ".mkv" ->
+      let startinfo = 
+        new ProcessStartInfo(
+          UseShellExecute = false,
+          CreateNoWindow = true,
+          RedirectStandardOutput = true,
+          RedirectStandardError = true,
+          FileName = "mkvpropedit.exe",
+          Arguments = sprintf "--edit info --set title=\"%s\" \"%s\"" title path )
+
+      let ps = Process.Start(startinfo)
+      ps.Start() |> ignore
+      ps.WaitForExit()
+      sprintf "%s\r\n%s" title (ps.StandardOutput.ReadToEnd())
+    | _ -> 
+      sprintf "Cannot process \"%s\". Filetype unsupported." title
 
 
 module Config =

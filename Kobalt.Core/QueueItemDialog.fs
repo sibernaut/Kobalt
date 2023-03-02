@@ -10,7 +10,7 @@ type Model =
     Title: string }
 
 type Msg =
-  | TextInput of string
+  | Title of string
   | Submit
   | Cancel
 
@@ -20,11 +20,11 @@ let create  title itemId =
 
 let update msg (m: Model) =
   match msg with
-  | TextInput t -> { m with Title = t }, Cmd.none
+  | Title t -> { m with Title = t }, Cmd.none
   | Submit -> m, Cmd.none
   | Cancel -> m, Cmd.none
 
 let bindings () =
-  [ "TextInput" |> Binding.twoWay ((fun m -> m.Title), TextInput)
+  [ "TextInput" |> Binding.twoWay ((fun m -> m.Title), Title)
     "Submit" |> Binding.cmd Submit // managed by parent
     "Cancel" |> Binding.cmd Cancel ] // managed by parent

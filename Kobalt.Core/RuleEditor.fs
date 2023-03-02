@@ -30,8 +30,6 @@ let init search replace isregex guid =
     ReplaceWith = replace
     IsRegex = isregex }
 
-let initEmpty = init empty.SearchFor empty.ReplaceWith empty.IsRegex empty.Id
-
 let update msg m =
   match msg with
   | SetSearchFor t -> { m with SearchFor = t }, Cmd.none
@@ -41,8 +39,8 @@ let update msg m =
   | Cancel -> m, Cmd.none
 
 let bindings () =
-  [ "SearchFor" |> Binding.twoWay ((fun m -> m.SearchFor), SetSearchFor)
-    "ReplaceWith" |> Binding.twoWay ((fun m -> m.ReplaceWith), SetReplaceWith) 
-    "IsRegex" |> Binding.twoWay ((fun m -> m.IsRegex), SetRegex) 
+  [ "SearchFor" |> Binding.twoWay((fun m -> m.SearchFor), SetSearchFor)
+    "ReplaceWith" |> Binding.twoWay((fun m -> m.ReplaceWith), SetReplaceWith) 
+    "IsRegex" |> Binding.twoWay((fun m -> m.IsRegex), SetRegex) 
     "Submit" |> Binding.cmd Submit // managed by parent
     "Cancel" |> Binding.cmd Cancel ] // managed by parent

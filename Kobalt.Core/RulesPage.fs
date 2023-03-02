@@ -30,21 +30,27 @@ type Msg =
   | ItemEditor of RuleEditor.Msg
 
 let init rules =
-  { Items = rules |> List.map (fun e -> { Id = Guid.NewGuid(); Rule = e })
+  let toItem e =
+    { Id = Guid.NewGuid()
+      Rule = e }
+
+  { Items = 
+      rules 
+      |> List.map toItem
     Selected = None
     Dialog = None },
   Cmd.none
 
 let toRule (model: RuleEditor.Model) = 
-  match model.IsRegex with
-  | false -> 
-    { Id = model.Id
-      Rule = Rule.create model.SearchFor model.ReplaceWith }
-  | true -> 
-    { Id = model.Id
-      Rule = 
-        Rule.create model.SearchFor model.ReplaceWith
-        |> Rule.setRegex }
+  let rule = 
+    let r = Rule.create model.SearchFor model.ReplaceWith
+
+    match model.IsRegex with
+    | false -> r
+    | true -> r |> Rule.setRegex
+
+  { Id = model.Id
+    Rule = rule }
 
 let update msg m =
   match msg with
@@ -53,7 +59,7 @@ let update msg m =
   | CloseDialog -> { m with Dialog = None }, Cmd.none
   | AddNew -> 
     { m with 
-        Dialog = Some(Dialog.ItemEditor (RuleEditor.initEmpty))
+        Dialog = Some(Dialog.ItemEditor RuleEditor.empty)
         Selected = None }, 
     Cmd.none
   | Create -> 
@@ -66,47 +72,49 @@ let update msg m =
       Cmd.ofMsg CloseDialog
   | SetSelected i -> { m with Selected = i }, Cmd.none
   | Modify ->
-    { m with Dialog = 
-              m.Items 
-              |> List.find (fun e -> e.Id = m.Selected.Value)
-              |> (fun r -> 
-                  let search, replace, isregex =
-                    match r.Rule with
-                    | Regular p -> p.Search, p.Replace, false
-                    | Regex p -> p.Search, p.Replace, true
+    let toEditorItem item =
+      let search, replace, isregex =
+        match item.Rule with
+        | Regular p -> p.Search, p.Replace, false
+        | Regex p -> p.Search, p.Replace, true
 
-                  RuleEditor.init search replace isregex r.Id)
-              |> Dialog.ItemEditor 
-              |> Some }, 
-    Cmd.none
+      RuleEditor.init search replace isregex item.Id
+    
+    let m' =
+      m.Items 
+      |> List.find (fun e -> e.Id = m.Selected.Value)
+      |> toEditorItem
+
+    { m with Dialog = Some(Dialog.ItemEditor m') }, Cmd.none
   | Update -> 
     match m.Dialog with
     | Some(Dialog.ItemEditor m') ->
-      { m with
-          Items = 
-            m.Items
-            |> List.map (fun e -> if e.Id = m'.Id then toRule m' else e)
-          Dialog = None }, 
-      Cmd.none
-    | None -> m, Cmd.ofMsg CloseDialog
+      let updateItem e = 
+        match e.Id with 
+        | guid when guid = m'.Id -> toRule m' 
+        | _ -> e
+
+      let items =
+        m.Items
+        |> List.map updateItem
+
+      { m with Items = items }, Cmd.ofMsg CloseDialog
+    | None -> m, Cmd.none
   | Remove -> 
-    { m with Items = 
-              m.Items
-              |> List.filter (fun e -> e.Id <> m.Selected.Value) },
-    Cmd.none
+    let isNotSelected e = e.Id <> m.Selected.Value
+
+    { m with Items = m.Items |> List.filter isNotSelected }, Cmd.none
   | ItemEditor RuleEditor.Submit -> 
     match m.Selected with
     | None -> m, Cmd.ofMsg Create
     | Some _ -> m, Cmd.ofMsg Update
-  | ItemEditor RuleEditor.Cancel ->
-    { m with Dialog = None }, Cmd.none
+  | ItemEditor RuleEditor.Cancel -> { m with Dialog = None }, Cmd.none
   | ItemEditor msg' ->
     match m.Dialog with
     | Some(Dialog.ItemEditor m') ->
       let itemModel, itemMsg = RuleEditor.update msg' m'
 
-      { m with Dialog = itemModel |> Dialog.ItemEditor |> Some },
-      itemMsg
+      { m with Dialog = Some(Dialog.ItemEditor itemModel) }, itemMsg
     | None -> m, Cmd.none
 
 let bindings () =
@@ -116,25 +124,29 @@ let bindings () =
       (fun m -> m.Items),
       (fun e -> e.Id),
       (fun () ->
-        [ "ID" |> Binding.oneWay (fun (_, e) -> e.Id)
-          "SearchFor" |> Binding.oneWay (fun (_, e) -> Rule.getField e.Rule |> fst)
-          "ReplaceWith" |> Binding.oneWay (fun (_, e) -> Rule.getField e.Rule |> snd) ]))
+        [ "ID" |> Binding.oneWay(fun (_, e) -> e.Id)
+          "SearchFor" |> Binding.oneWay(fun (_, e) -> Rule.getField e.Rule |> fst)
+          "ReplaceWith" |> Binding.oneWay(fun (_, e) -> Rule.getField e.Rule |> snd) ]
+      )
+    )
     "Selected" |> Binding.twoWayOpt((fun m -> m.Selected), SetSelected)
     "AddNew" |> Binding.cmd AddNew
     "Modify" |> Binding.cmdIf(Modify, (fun m -> m.Selected.IsSome))
     "Remove" |> Binding.cmdIf(Remove, (fun m -> m.Selected.IsSome))
     "Save" |> Binding.cmd Save
     "RuleEditorVisible"
-    |> Binding.oneWay (fun m ->
+    |> Binding.oneWay(fun m ->
       match m.Dialog with
       | Some(Dialog.ItemEditor _) -> true
-      | _ -> false)
+      | _ -> false
+    )
     "RuleEditor"
-    |> Binding.subModelOpt (
+    |> Binding.subModelOpt(
       (fun m ->
         match m.Dialog with
         | Some(Dialog.ItemEditor m') -> Some m'
         | _ -> None),
       snd,
       ItemEditor,
-      RuleEditor.bindings) ]
+      RuleEditor.bindings
+    ) ]

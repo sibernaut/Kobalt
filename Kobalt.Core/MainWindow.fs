@@ -1,7 +1,6 @@
 ﻿module Kobalt.Core.MainWindow
 
 open System
-open System.IO
 open Elmish
 open Elmish.WPF
 
@@ -43,64 +42,50 @@ let update msg m =
         LastPage = m.CurrentPage },
     Cmd.none
   | ShowQueuePage ->
-    let model, _ = QueuePage.init m.Config
-    let cmd = 
-      match m.Config.AutoScanPath with
-      | None -> Cmd.none
-      | Some p ->
-        let isVideo (path: string) =
-          let ext = Path.GetExtension(path)
-          ext = ".mp4" || ext = ".mkv"
+    let m', msg' = QueuePage.init m.Config
 
-        let files = 
-          Directory.EnumerateFiles(p)
-          |> Seq.filter isVideo
-          |> Seq.toArray
-        
-        Cmd.ofMsg (QueuePageMsg(QueuePage.LoadSuccess files))
-
-    { m with CurrentPage = Some(QueuePage model) }, cmd
-  | QueuePageMsg QueuePage.Msg.GoNext -> m, Cmd.ofMsg ShowProgressPage
-  | QueuePageMsg QueuePage.Msg.GoRules -> m, Cmd.ofMsg ShowRulesPage
-  | QueuePageMsg QueuePage.Msg.GoOptions -> m, Cmd.ofMsg ShowOptionsPage
+    { m with CurrentPage = Some(QueuePage m') }, Cmd.map QueuePageMsg msg'
+  | QueuePageMsg QueuePage.GoNext -> m, Cmd.ofMsg ShowProgressPage
+  | QueuePageMsg QueuePage.GoRules -> m, Cmd.ofMsg ShowRulesPage
+  | QueuePageMsg QueuePage.GoOptions -> m, Cmd.ofMsg ShowOptionsPage
   | QueuePageMsg msg' ->
     match m.CurrentPage with
     | Some(QueuePage m') ->
-      let queueModel, queueMsg = QueuePage.update msg' m'
+      let m', queueMsg = QueuePage.update msg' m'
 
-      { m with
-          CurrentPage = queueModel |> QueuePage |> Some },
-      Cmd.map QueuePageMsg queueMsg
+      { m with CurrentPage = Some(QueuePage m') }, Cmd.map QueuePageMsg queueMsg
     | _ -> m, Cmd.none
   | ShowProgressPage ->
     let items =
       match m.CurrentPage with
       | Some(QueuePage m') ->
         m'.Items
-        |> List.map (fun i -> ProgressPage.createItem i.Video.FilePath (Video.getTitle m.Config.Rules i.Video))
+        |> List.map (fun i -> i.Video)
       | _ -> List.Empty
 
-    let m', _ = ProgressPage.init items
+    let m', msg' = ProgressPage.init m.Config items
 
     { m with
-        CurrentPage = Some <| ProgressPage m'
+        CurrentPage = Some(ProgressPage m')
         LastPage = m.CurrentPage },
-    Cmd.ofMsg (ProgressPageMsg ProgressPage.Msg.RequestLoad)
-  | ProgressPageMsg ProgressPage.Msg.GoBack -> m, Cmd.ofMsg GoBack
+    Cmd.map ProgressPageMsg msg'
+  | ProgressPageMsg ProgressPage.GoBack -> m, Cmd.ofMsg GoBack
   | ProgressPageMsg msg' ->
     match m.CurrentPage with
     | Some(ProgressPage m') ->
-      let progressModel, progressMsg = ProgressPage.update msg' m'
+      let model, message = ProgressPage.update msg' m'
 
       { m with
-          CurrentPage = progressModel |> ProgressPage |> Some },
-      Cmd.map ProgressPageMsg progressMsg
+          CurrentPage = Some(ProgressPage model) },
+      Cmd.map ProgressPageMsg message
     | _ -> m, Cmd.none
   | ShowRulesPage -> 
+    let m', msg' = RulesPage.init m.Config.Rules
+
     { m with 
-        CurrentPage = RulesPage.init m.Config.Rules |> fst |> RulesPage |> Some
+        CurrentPage = Some(RulesPage m')
         LastPage = m.CurrentPage },
-    Cmd.none
+    Cmd.map RulesPageMsg msg'
   | RulesPageMsg RulesPage.GoBack -> m, Cmd.ofMsg GoBack
   | RulesPageMsg RulesPage.Save -> 
     let rules =
@@ -124,23 +109,20 @@ let update msg m =
   | RulesPageMsg msg' ->
     match m.CurrentPage with
     | Some(RulesPage m') ->
-    let rulesModel, rulesMsg = RulesPage.update msg' m'
+    let m', msg' = RulesPage.update msg' m'
 
     { m with
-        CurrentPage = rulesModel |> RulesPage |> Some },
-    Cmd.map RulesPageMsg rulesMsg
+        CurrentPage = Some(RulesPage m')},
+    Cmd.map RulesPageMsg msg'
     | _ -> m, Cmd.none
   | ShowOptionsPage ->
-    { m with
-        CurrentPage = 
-          let path = 
-            match m.Config.AutoScanPath with
-            | None -> OptionsPage.init String.Empty
-            | Some t -> OptionsPage.init t
+    let m' = 
+      match m.Config.AutoScanPath with
+      | None -> OptionsPage.init String.Empty
+      | Some t -> OptionsPage.init t
           
-          path
-          |> OptionsPage 
-          |> Some
+    { m with
+        CurrentPage = Some(OptionsPage m')
         LastPage = m.CurrentPage },
     Cmd.none
   | OptionsPageMsg OptionsPage.GoBack -> m, Cmd.ofMsg GoBack
@@ -162,68 +144,76 @@ let update msg m =
   | OptionsPageMsg msg' ->
     match m.CurrentPage with
     | Some(OptionsPage m') ->
-      let model, message = OptionsPage.update msg' m'
+      let m', msg' = OptionsPage.update msg' m'
 
-      { m with CurrentPage = model |> OptionsPage |> Some },
-      Cmd.map OptionsPageMsg message
+      { m with CurrentPage = Some(OptionsPage m') },
+      Cmd.map OptionsPageMsg msg'
     | _ -> m, Cmd.none
 
 let bindings () =
   [ "QueuePageVisible"
-    |> Binding.oneWay (fun m ->
+    |> Binding.oneWay(fun m ->
       match m.CurrentPage with
       | Some(QueuePage _) -> true
-      | _ -> false)
+      | _ -> false
+    )
     "QueuePage"
-    |> Binding.subModelOpt (
+    |> Binding.subModelOpt(
       (fun m ->
         match m.CurrentPage with
         | Some(QueuePage m') -> Some m'
         | _ -> None),
       snd,
       QueuePageMsg,
-      QueuePage.bindings )
+      QueuePage.bindings
+    )
     "ProgressPageVisible"
-    |> Binding.oneWay (fun m ->
+    |> Binding.oneWay(fun m ->
       match m.CurrentPage with
       | Some(ProgressPage _) -> true
-      | _ -> false)
+      | _ -> false
+    )
     "ProgressPage"
-    |> Binding.subModelOpt (
+    |> Binding.subModelOpt(
       (fun m ->
         match m.CurrentPage with
         | Some(ProgressPage m') -> Some m'
         | _ -> None),
       snd,
       ProgressPageMsg,
-      ProgressPage.bindings)
+      ProgressPage.bindings
+    )
     "RulesPageVisible"
-    |> Binding.oneWay (fun m ->
+    |> Binding.oneWay(fun m ->
       match m.CurrentPage with
       | Some(RulesPage _) -> true
-      | _ -> false)
+      | _ -> false
+    )
     "RulesPage"
-    |> Binding.subModelOpt (
+    |> Binding.subModelOpt(
       (fun m ->
         match m.CurrentPage with
         | Some(RulesPage m') -> Some m'
         | _ -> None),
       snd,
       RulesPageMsg,
-      RulesPage.bindings)
+      RulesPage.bindings
+      )
     "OptionsPageVisible"
-    |> Binding.oneWay (fun m ->
+    |> Binding.oneWay(fun m ->
       match m.CurrentPage with
       | Some(OptionsPage _) -> true
-      | _ -> false)
+      | _ -> false
+    )
     "OptionsPage"
-    |> Binding.subModelOpt (
+    |> Binding.subModelOpt(
       (fun m ->
         match m.CurrentPage with
         | Some(OptionsPage m') -> Some m'
         | _ -> None),
       snd,
       OptionsPageMsg,
-      OptionsPage.bindings) ]
+      OptionsPage.bindings
+    ) ]
 
 let designVm = ViewModel.designInstance (init () |> fst) (bindings ())

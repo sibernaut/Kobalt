@@ -14,7 +14,6 @@
         <TextBox Grid.Row="0" Text="{Binding Text}" IsReadOnly="True"/>
         <Border Grid.Row="1" Background="WhiteSmoke">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                <Button Content="Update" Command="{Binding Update}" Width="74" Height="22"/>
                 <Button Content="Back" Command="{Binding GoBack}" Width="74" Height="22"/>
             </StackPanel>
         </Border>
