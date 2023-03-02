@@ -66,10 +66,14 @@ let update msg m =
     match m.Dialog with
     | None -> m, Cmd.none
     | Some(Dialog.ItemEditor m') ->
-      { m with 
-          Items = m.Items @ [ toRule m' ]
-          Dialog = None },
-      Cmd.ofMsg CloseDialog
+      let isEmpty = 
+          m'.SearchFor |> String.IsNullOrWhiteSpace
+          || m'.ReplaceWith |> String.IsNullOrWhiteSpace
+
+      match isEmpty with
+      | false -> 
+        { m with Items = m.Items @ [ toRule m' ] }, Cmd.ofMsg CloseDialog
+      | true -> m, Cmd.none
   | SetSelected i -> { m with Selected = i }, Cmd.none
   | Modify ->
     let toEditorItem item =
@@ -89,6 +93,10 @@ let update msg m =
   | Update -> 
     match m.Dialog with
     | Some(Dialog.ItemEditor m') ->
+      let isEmpty = 
+        m'.SearchFor |> String.IsNullOrWhiteSpace
+        || m'.ReplaceWith |> String.IsNullOrWhiteSpace
+
       let updateItem e = 
         match e.Id with 
         | guid when guid = m'.Id -> toRule m' 
@@ -98,7 +106,9 @@ let update msg m =
         m.Items
         |> List.map updateItem
 
-      { m with Items = items }, Cmd.ofMsg CloseDialog
+      match isEmpty with
+      | false -> { m with Items = items }, Cmd.ofMsg CloseDialog
+      | true -> m, Cmd.none
     | None -> m, Cmd.none
   | Remove -> 
     let isNotSelected e = e.Id <> m.Selected.Value
