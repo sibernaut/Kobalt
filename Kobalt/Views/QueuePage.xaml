@@ -51,7 +51,8 @@
                         <Button Content="Options" Command="{Binding GoOptions}" Width="74" Height="22"/>
                     </StackPanel>
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button Content="Load" Command="{Binding Load}" Width="74" Height="22"/>
+                        <Button Content="Add..." Command="{Binding Load}" Width="74" Height="22"/>
+                        <Button Content="Quick Add" Command="{Binding LoadFav}" Width="74" Height="22"/>
                         <Button Content="Next" Command="{Binding GoNext}" Width="74" Height="22"/>
                     </StackPanel>
                 </DockPanel>

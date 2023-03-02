@@ -112,7 +112,7 @@ module Config =
 
   let empty =
     { Rules = List.Empty 
-      AutoScanPath = None }
+      FavoritePath = None }
 
   let options =
     let jsonOpt = JsonSerializerOptions()

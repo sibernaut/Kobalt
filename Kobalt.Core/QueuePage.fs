@@ -23,6 +23,7 @@ type Model =
 
 type Msg =
   | RequestLoad
+  | LoadFavorite
   | LoadSuccess of string[]
   | LoadCancelled
   | LoadFailed of exn
@@ -37,26 +38,11 @@ type Msg =
   | ItemEditor of QueueItemDialog.Msg
 
 let init config =
-  let msg = 
-    match config.AutoScanPath with
-    | None -> Cmd.none
-    | Some p ->
-      let isVideo (path: string) =
-        let ext = Path.GetExtension(path)
-        ext = ".mp4" || ext = ".mkv"
-
-      let files = 
-        Directory.EnumerateFiles(p)
-        |> Seq.filter isVideo
-        |> Seq.toArray
-      
-      Cmd.ofMsg (LoadSuccess files)
-
   { Items = List.Empty
     Dialog = None
     Config = config
     StatusMsg = "" },
-  msg
+  Cmd.ofMsg LoadFavorite
 
 let load () =
   Application.Current.Dispatcher.Invoke(fun () ->
@@ -75,10 +61,32 @@ let load () =
         return LoadCancelled
     })
 
+let loadFav m =
+  match m.Config.FavoritePath with
+  | None -> LoadCancelled
+  | Some p ->
+    let isVideo (path: string) =
+      let ext = Path.GetExtension(path)
+      ext = ".mp4" || ext = ".mkv"
+
+    let isNew path =
+      m.Items
+      |> List.exists(fun x -> x.Video.FilePath = path)
+      |> not
+
+    let files = 
+      Directory.EnumerateFiles(p)
+      |> Seq.filter isVideo
+      |> Seq.filter isNew
+      |> Seq.toArray
+    
+    LoadSuccess files
+
 
 let update msg m =
   match msg with
   | RequestLoad -> m, Cmd.OfAsync.either load () id LoadFailed
+  | LoadFavorite -> m, Cmd.OfFunc.result(loadFav m)
   | LoadSuccess f -> 
     let createItem x =
       { Id = Guid.NewGuid()
@@ -207,6 +215,7 @@ let bindings () =
     )
     "StatusMsg" |> Binding.oneWay(fun m -> m.StatusMsg)
     "Load" |> Binding.cmd RequestLoad
+    "LoadFav" |> Binding.cmd LoadFavorite
     "ClearList" |> Binding.cmd ClearList
     "GoNext" |> Binding.cmd GoNext
     "GoRules" |> Binding.cmd GoRules

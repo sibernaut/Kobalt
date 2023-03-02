@@ -117,7 +117,7 @@ let update msg m =
     | _ -> m, Cmd.none
   | ShowOptionsPage ->
     let m' = 
-      match m.Config.AutoScanPath with
+      match m.Config.FavoritePath with
       | None -> OptionsPage.init String.Empty
       | Some t -> OptionsPage.init t
           
@@ -131,11 +131,11 @@ let update msg m =
       match m.CurrentPage with
       | Some(OptionsPage m') ->
         let path = 
-          match m'.AutoScanPath |> String.IsNullOrWhiteSpace with
+          match m'.FavPath |> String.IsNullOrWhiteSpace with
           | true -> None
-          | false -> Some m'.AutoScanPath
+          | false -> Some m'.FavPath
 
-        let config = { m.Config with AutoScanPath = path }
+        let config = { m.Config with FavoritePath = path }
         Config.save config
         { m with Config = config } 
       | _ -> m

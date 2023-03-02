@@ -12,13 +12,13 @@
             <RowDefinition Height="48"/>
         </Grid.RowDefinitions>
         <StackPanel Grid.Row="0">
-            <TextBlock Text="Path for startup autoscan:"/>
+            <TextBlock Text="Favorite path for quick add files:"/>
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="80"/>
                 </Grid.ColumnDefinitions>
-                <TextBox Grid.Column="0" Text="{Binding AutoScanPath}"/>
+                <TextBox Grid.Column="0" Text="{Binding FavPath}"/>
                 <Button Grid.Column="1" Content="Browse..." Command="{Binding Browse}"/>
             </Grid>
         </StackPanel>

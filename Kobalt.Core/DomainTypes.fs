@@ -20,4 +20,4 @@ module Domains =
 
   type Config = 
     { Rules: Rules
-      AutoScanPath: string option }
+      FavoritePath: string option }
