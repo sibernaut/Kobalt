@@ -12,6 +12,7 @@ type Msg =
   | RequestLoad
   | LoadSuccess of string
   | GoBack
+  | Exit
 
 let init config items =
   { Items = items
@@ -34,7 +35,9 @@ let update msg m =
   | RequestLoad  -> m, Cmd.ofSub (load m)
   | LoadSuccess t -> { m with Text = sprintf "%s\r\n%s" m.Text t }, Cmd.none
   | GoBack -> m, Cmd.none // managed by parent model
+  | Exit -> m, Cmd.none // managed by parent model
 
 let bindings () =
   [ "Text" |> Binding.oneWay (fun m -> m.Text)
-    "GoBack" |> Binding.cmd GoBack ]
+    "GoBack" |> Binding.cmd GoBack
+    "Exit" |> Binding.cmd Exit ]

@@ -1,6 +1,7 @@
 ﻿module Kobalt.Core.MainWindow
 
 open System
+open System.Windows
 open Elmish
 open Elmish.WPF
 
@@ -16,6 +17,7 @@ type MainWindow =
     Config: Config }
 
 type Msg =
+  | Exit
   | GoBack
   | ShowQueuePage
   | QueuePageMsg of QueuePage.Msg
@@ -36,6 +38,9 @@ let init () =
 
 let update msg m =
   match msg with
+  | Exit -> 
+    Application.Current.Shutdown()
+    m, Cmd.none
   | GoBack ->
     { m with
         CurrentPage = m.LastPage
@@ -69,6 +74,7 @@ let update msg m =
         CurrentPage = Some(ProgressPage m')
         LastPage = m.CurrentPage },
     Cmd.map ProgressPageMsg msg'
+  | ProgressPageMsg ProgressPage.Exit -> m, Cmd.ofMsg Exit
   | ProgressPageMsg ProgressPage.GoBack -> m, Cmd.ofMsg GoBack
   | ProgressPageMsg msg' ->
     match m.CurrentPage with
