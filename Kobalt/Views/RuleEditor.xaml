@@ -12,15 +12,15 @@
             <RowDefinition Height="48"/>
         </Grid.RowDefinitions>
         <StackPanel Grid.Row="0">
-            <Label Content="Search for"/>
-            <TextBox Text="{Binding SearchFor, Mode=TwoWay}"/>
-            <Label Content="Replace with"/>
-            <TextBox Text="{Binding ReplaceWith, Mode=TwoWay}"/>
-            <CheckBox Content="Regular expression" IsChecked="{Binding IsRegex, Mode=TwoWay}" VerticalAlignment="Center"/>
+            <Label Content="S_earch for" Target="{Binding ElementName=SearchFor}"/>
+            <TextBox x:Name="SearchFor" Text="{Binding SearchFor, Mode=TwoWay}"/>
+            <Label Content="Re_place with" Target="{Binding ElementName=ReplaceWith}"/>
+            <TextBox x:Name="ReplaceWith" Text="{Binding ReplaceWith, Mode=TwoWay}"/>
+            <CheckBox Content="Regular e_xpression" IsChecked="{Binding IsRegex, Mode=TwoWay}" VerticalAlignment="Center"/>
         </StackPanel>
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Content="Submit" Command="{Binding Submit}" Height="22" Width="74"/>
-            <Button Content="Cancel" Command="{Binding Cancel}" Height="22" Width="74"/>
+            <Button Content="_Save change" Command="{Binding Submit}"/>
+            <Button Content="_Reset change" Command="{Binding Cancel}"/>
         </StackPanel>
     </Grid>
 </UserControl>

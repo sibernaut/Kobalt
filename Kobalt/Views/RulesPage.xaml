@@ -12,55 +12,86 @@
         </ResourceDictionary>
     </UserControl.Resources>
     <Grid>
-        <Grid>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="48"/>
-            </Grid.RowDefinitions>
-            <Grid Grid.Row="0">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="48"/>
-                </Grid.RowDefinitions>
-                <ListBox 
-                    Grid.Row="0"
-                    ItemsSource="{Binding Items}"
-                    SelectedValue="{Binding Selected}"
-                    SelectedValuePath="ID">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel>
-                                <TextBlock Text="{Binding SearchFor}" FontWeight="Bold"/>
-                                <TextBlock Text="{Binding ReplaceWith}" FontWeight="Bold"/>
-                            </StackPanel>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-                <StackPanel Grid.Row="1" Orientation="Horizontal">
-                    <Button Content="New" Command="{Binding AddNew}" Width="74" Height="22"/>
-                    <Button Content="Modify" Command="{Binding Modify}" Width="74" Height="22"/>
-                    <Button Content="Remove" Command="{Binding Remove}" Width="74" Height="22"/>
+        <Grid.Resources>
+            <Style TargetType="Button">
+                <Setter Property="Width" Value="74"/>
+                <Setter Property="Height" Value="22"/>
+            </Style>
+        </Grid.Resources>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="48"/>
+        </Grid.RowDefinitions>
+        <TabControl>
+            <TabItem Header="Rules">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="2*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="48"/>
+                    </Grid.RowDefinitions>
+                    <ListBox 
+                        Grid.Row="0"
+                        ItemsSource="{Binding Items}"
+                        SelectedValue="{Binding Selected}"
+                        SelectedValuePath="ID">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel>
+                                    <TextBlock Text="{Binding SearchFor}" FontWeight="Bold"/>
+                                    <TextBlock Text="{Binding ReplaceWith}" FontWeight="Bold"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <local:RuleEditor
+                        Grid.Column="1" Grid.Row="0"
+                        DataContext="{Binding RuleEditor}"
+                        d:DataContext="{Binding DataContext.RuleEditor,
+                                        RelativeSource={RelativeSource AncestorType=Grid}}"
+                                        Visibility="{Binding DataContext.RuleEditorVisible,
+                                                     RelativeSource={RelativeSource AncestorType=Grid},
+                                                     Converter={StaticResource VisibilityConverter}}"/>
+                    <StackPanel 
+                        Grid.Column="0" Grid.Row="1" 
+                        Orientation="Horizontal">
+                        <Button Content="_New" Command="{Binding AddNew}"/>
+                        <Button Content="R_emove" Command="{Binding Remove}"/>
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+            <TabItem Header="Options">
+                <StackPanel>
+                    <Label 
+                        Content="Favorite path for quick add files:"
+                        Target="{Binding ElementName=FavPath}"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox 
+                            x:Name="FavPath"
+                            Grid.Column="0" 
+                            Text="{Binding FavPath}"/>
+                        <Button 
+                            Grid.Column="1" 
+                            Content="Browse..." 
+                            Command="{Binding Browse}"/>
+                    </Grid>
                 </StackPanel>
-            </Grid>
-            <Border Grid.Row="1" Background="WhiteSmoke">
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button Content="Save" Command="{Binding Save}" Width="74" Height="22"/>
-                    <Button Content="Back" Command="{Binding GoBack}" Width="74" Height="22"/>
-                </StackPanel>
-            </Border>
-        </Grid>
-        <Border Visibility="{Binding RuleEditorVisible, Converter={StaticResource VisibilityConverter}}">
-            <Border.Background>
-                <SolidColorBrush Color="SlateGray" Opacity="0.5"/>
-            </Border.Background>
+            </TabItem>
+        </TabControl>
+        <Border 
+                Grid.ColumnSpan="2" Grid.Row="2" 
+                Background="WhiteSmoke">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="_Save" Command="{Binding Save}"/>
+                <Button Content="_Back" Command="{Binding GoBack}"/>
+            </StackPanel>
         </Border>
-        <local:RuleEditor
-            Height="170" Width="300"
-            DataContext="{Binding RuleEditor}"
-            d:DataContext="{Binding DataContext.RuleEditor,
-                            RelativeSource={RelativeSource AncestorType=Grid}}"
-            Visibility="{Binding DataContext.RuleEditorVisible,
-                         RelativeSource={RelativeSource AncestorType=Grid},
-                         Converter={StaticResource VisibilityConverter}}"/>
     </Grid>
 </UserControl>

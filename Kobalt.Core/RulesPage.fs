@@ -9,9 +9,6 @@ open Elmish
 open Elmish.WPF
 
 
-type Dialog =
-  | ItemEditor of RuleEditor.Model
-
 type Item =
   { Id: Guid 
     Rule: Rule }
@@ -19,30 +16,29 @@ type Item =
 type Model =
   { Items: Item list
     Selected: Guid option
-    Dialog: Dialog option }
+    Form: RuleEditor.Model option
+    FavPath: string option }
 
 type Msg =
   | GoBack
-  | AddNew
-  | Create
+  | SetAutoScanPath of string option
   | SetSelected of Guid option
-  | Modify
-  | Update
-  | CloseDialog
+  | AddNew
   | Remove
   | Save
   | ItemEditor of RuleEditor.Msg
 
-let init rules =
-  let toItem e =
-    { Id = Guid.NewGuid()
-      Rule = e }
+let init config =
+  let items = 
+    config.Rules 
+    |> List.map (fun e ->
+      { Id = Guid.NewGuid()
+        Rule = e } )
 
-  { Items = 
-      rules 
-      |> List.map toItem
+  { Items = items
     Selected = None
-    Dialog = None },
+    Form = None 
+    FavPath = config.FavoritePath },
   Cmd.none
 
 let toRule (model: RuleEditor.Model) = 
@@ -56,79 +52,75 @@ let toRule (model: RuleEditor.Model) =
   { Id = model.Id
     Rule = rule }
 
-let update msg m =
-  match msg with
-  | GoBack -> m, Cmd.none // managed by parent
-  | Save -> m, Cmd.none // managed by parent
-  | CloseDialog -> { m with Dialog = None }, Cmd.none
-  | AddNew -> 
-    { m with 
-        Dialog = Some(Dialog.ItemEditor RuleEditor.empty)
-        Selected = None }, 
-    Cmd.none
-  | Create -> 
-    match m.Dialog with
-    | None -> m, Cmd.none
-    | Some(Dialog.ItemEditor m') ->
-      let isEmpty = 
-          m'.SearchFor |> String.IsNullOrWhiteSpace
-          || m'.ReplaceWith |> String.IsNullOrWhiteSpace
+let setAutoScanPath p m =
+  match p with
+  | Some t when t |> String.IsNullOrWhiteSpace -> m
+  | None -> m
+  | _ -> { m with FavPath = p }
 
-      match isEmpty with
-      | false -> 
-        { m with Items = m.Items @ [ toRule m' ] }, Cmd.ofMsg CloseDialog
-      | true -> m, Cmd.none
-  | SetSelected i -> { m with Selected = i }, Cmd.none
-  | Modify ->
-    let toEditorItem item =
-      let search, replace, isregex =
+let setSelected i m =
+  match i with
+  | Some Id ->
+    let item =
+      m.Items
+      |> List.find (fun e -> e.Id = Id)
+
+    let toRuleEditor item =
+      let search, replace, isRegex =
         match item.Rule with
         | Regular p -> p.Search, p.Replace, false
         | Regex p -> p.Search, p.Replace, true
 
-      RuleEditor.init search replace isregex item.Id
-    
-    let m' =
-      m.Items 
-      |> List.find (fun e -> e.Id = m.Selected.Value)
-      |> toEditorItem
+      RuleEditor.init search replace isRegex item.Id
 
-    { m with Dialog = Some(Dialog.ItemEditor m') }, Cmd.none
-  | Update -> 
-    match m.Dialog with
-    | Some(Dialog.ItemEditor m') ->
-      let isEmpty = 
-        m'.SearchFor |> String.IsNullOrWhiteSpace
-        || m'.ReplaceWith |> String.IsNullOrWhiteSpace
+    { m with 
+        Selected = i 
+        Form = Some (toRuleEditor item) }
+  | None -> 
+    { m with 
+        Selected = None 
+        Form = None }
 
-      let updateItem e = 
-        match e.Id with 
-        | guid when guid = m'.Id -> toRule m' 
-        | _ -> e
+let addNew m =
+  { m with 
+      Form = Some RuleEditor.empty
+      Selected = None }
 
-      let items =
-        m.Items
-        |> List.map updateItem
+let saveChange m =
+  match m.Form with
+  | None -> m
+  | Some m' ->
+    let isExist =
+      m.Items
+      |> List.exists (fun e -> e.Id = m'.Id)
 
-      match isEmpty with
-      | false -> { m with Items = items }, Cmd.ofMsg CloseDialog
-      | true -> m, Cmd.none
-    | None -> m, Cmd.none
-  | Remove -> 
-    let isNotSelected e = e.Id <> m.Selected.Value
+    match isExist with
+    | false -> { m with Items = m.Items @ [ toRule m' ] }
+    | true -> 
+      let items = m.Items |> List.map (fun e -> if e.Id = m'.Id then toRule m' else e)
+      { m with Items = items }
+  
+let removeItem m =
+  match m.Selected with
+  | None -> m
+  | Some Id -> { m with Items = m.Items |> List.filter (fun e -> e.Id <> Id) }
 
-    { m with Items = m.Items |> List.filter isNotSelected }, Cmd.none
-  | ItemEditor RuleEditor.Submit -> 
-    match m.Selected with
-    | None -> m, Cmd.ofMsg Create
-    | Some _ -> m, Cmd.ofMsg Update
-  | ItemEditor RuleEditor.Cancel -> { m with Dialog = None }, Cmd.none
+let update msg m =
+  match msg with
+  | GoBack -> m, Cmd.none // managed by parent
+  | Save -> m, Cmd.none // managed by parent
+  | SetAutoScanPath p -> setAutoScanPath p m, Cmd.none
+  | SetSelected i -> setSelected i m, Cmd.none
+  | AddNew -> addNew m, Cmd.none
+  | ItemEditor RuleEditor.Submit -> saveChange m, Cmd.none
+  | ItemEditor RuleEditor.Cancel -> m, Cmd.ofMsg(SetSelected m.Selected)
+  | Remove -> removeItem m, Cmd.none
   | ItemEditor msg' ->
-    match m.Dialog with
-    | Some(Dialog.ItemEditor m') ->
+    match m.Form with
+    | Some m' ->
       let itemModel, itemMsg = RuleEditor.update msg' m'
 
-      { m with Dialog = Some(Dialog.ItemEditor itemModel) }, itemMsg
+      { m with Form = Some itemModel }, itemMsg
     | None -> m, Cmd.none
 
 let bindings () =
@@ -145,20 +137,20 @@ let bindings () =
     )
     "Selected" |> Binding.twoWayOpt((fun m -> m.Selected), SetSelected)
     "AddNew" |> Binding.cmd AddNew
-    "Modify" |> Binding.cmdIf(Modify, (fun m -> m.Selected.IsSome))
     "Remove" |> Binding.cmdIf(Remove, (fun m -> m.Selected.IsSome))
+    "FavPath" |> Binding.twoWayOpt((fun m -> m.FavPath), SetAutoScanPath)
     "Save" |> Binding.cmd Save
     "RuleEditorVisible"
     |> Binding.oneWay(fun m ->
-      match m.Dialog with
-      | Some(Dialog.ItemEditor _) -> true
-      | _ -> false
+      match m.Form with
+      | Some _ -> true
+      | None -> false
     )
     "RuleEditor"
     |> Binding.subModelOpt(
       (fun m ->
-        match m.Dialog with
-        | Some(Dialog.ItemEditor m') -> Some m'
+        match m.Form with
+        | Some m' -> Some m'
         | _ -> None),
       snd,
       ItemEditor,

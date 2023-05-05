@@ -12,16 +12,10 @@ open Elmish
 open Elmish.WPF
 
 
-type Dialog =
-  | ItemEditor of QueueItemDialog.Model
-
-type Item =
-  { Id: Guid
-    Video: Video }
-
 type Model =
-  { Items: Item list
-    Dialog: Dialog option
+  { Items: Video list
+    SelectedId: Guid option
+    Form: QueueDetailForm.Model option
     Config: Config
     StatusMsg: string }
 
@@ -31,19 +25,19 @@ type Msg =
   | LoadSuccess of string[]
   | LoadCancelled
   | LoadFailed of exn
-  | Remove of Guid
-  | Modify of Guid
-  | ResetChange of Guid
+  | SetSelected of Guid option
+  | FormMsg of QueueDetailForm.Msg
+  | Remove
   | ClearList
-  | CloseDialog
-  | GoNext
+  | Run
+  | RunSuccess of Video list
+  | RunFailed of exn
   | GoRules
-  | GoOptions
-  | ItemEditor of QueueItemDialog.Msg
 
 let init config =
   { Items = List.Empty
-    Dialog = None
+    SelectedId = None
+    Form = None
     Config = config
     StatusMsg = "" },
   Cmd.ofMsg LoadFavorite
@@ -75,7 +69,7 @@ let loadFav m =
 
     let isNew path =
       m.Items
-      |> List.exists(fun x -> x.Video.FilePath = path)
+      |> List.exists(fun x -> x.FilePath = path)
       |> not
 
     let files = 
@@ -86,19 +80,88 @@ let loadFav m =
     
     LoadSuccess files
 
+let selectItem itemId m =
+  match itemId with
+  | Some i ->
+    let item = m.Items |> List.find(fun e -> e.Id = i)
+
+    { m with 
+        SelectedId = itemId
+        Form = Some(QueueDetailForm.create m.Config.Rules item)}
+  | None -> 
+    { m with 
+        SelectedId = None
+        Form = None }
+
+let removeItem m =
+  match m.SelectedId with
+  | Some itemId ->
+    let items = 
+      m.Items 
+      |> List.filter (fun e -> e.Id <> itemId)
+
+    { m with
+        Items = items
+        StatusMsg = "Item removed" }
+  | None -> m
+
+let modifyItem m =
+  match m.SelectedId with
+  | Some itemId ->
+    let setTitle e =
+      match m.Form with
+      | Some f -> Video.updateTitle f.Title e
+      | None -> e
+    let items =
+      m.Items
+      |> List.map (fun e -> if e.Id = itemId then setTitle e else e)
+
+    { m with Items = items }
+  | None -> m
+
+let resetItem m =
+  match m.SelectedId with
+  | Some itemId ->
+    let resetTitle e =
+      match e.Id with
+      | guid when guid = itemId -> Video.resetTitle e
+      | _ -> e
+
+    { m with Items = m.Items |> List.map resetTitle }
+  | None -> m
+
+let run m = 
+  Application.Current.Dispatcher.Invoke(fun () ->
+    let guiCtx = SynchronizationContext.Current
+
+    async {
+      do! Async.SwitchToContext guiCtx
+      let items = m.Items |> List.map (fun e -> Video.save m.Config.Rules e)
+      return items
+    })
+
+let runSuccess items m =
+  { m with 
+      Items = items 
+      StatusMsg = "Run successful" }
+
+let runFailed (ex: exn) m =
+  let statusmsg = 
+    sprintf 
+      "Run failed with exception %s: %s" 
+      (ex.GetType().Name) 
+      ex.Message
+
+  { m with StatusMsg = statusmsg }
 
 let update msg m =
   match msg with
   | RequestLoad -> m, Cmd.OfAsync.either load () id LoadFailed
   | LoadFavorite -> m, Cmd.OfFunc.result(loadFav m)
   | LoadSuccess f -> 
-    let createItem x =
-      { Id = Guid.NewGuid()
-        Video = Video.create x }
-
     let items =
       f
-      |> Array.map createItem
+      |> Array.map Video.create
       |> Array.toList
       |> List.append m.Items
 
@@ -115,72 +178,33 @@ let update msg m =
         ex.Message
 
     { m with StatusMsg = statusmsg }, Cmd.none
-  | Remove itemId ->
-    let items = 
-      m.Items 
-      |> List.filter (fun e -> e.Id <> itemId)
+  | SetSelected itemId -> selectItem itemId m, Cmd.none
+  | FormMsg QueueDetailForm.Rename -> 
+    match m.Form with
+    | Some m' -> 
+      let isEmpty = m'.Title |> String.IsNullOrWhiteSpace
+      match isEmpty with
+      | true -> m, Cmd.ofMsg(FormMsg QueueDetailForm.Reset)
+      | false -> modifyItem m, Cmd.none
+    | None -> m, Cmd.none
+  | FormMsg QueueDetailForm.Reset -> resetItem m, Cmd.ofMsg(SetSelected m.SelectedId)
+  | FormMsg msg' ->
+    match m.Form with
+    | Some m' -> 
+      let model, message = QueueDetailForm.update msg' m'
 
-    { m with
-        Items = items
-        StatusMsg = "Item removed" },
-    Cmd.none
-  | Modify itemId ->
-    let item = 
-      m.Items 
-      |> List.find (fun e -> e.Id = itemId)
-      |> (fun x -> 
-        let title = Video.getTitle m.Config.Rules x.Video
-        QueueItemDialog.create title x.Id)
-
-    { m with Dialog = Some(Dialog.ItemEditor item) }, Cmd.none
-  | ResetChange itemId ->
-    let resetTitle e =
-      match e.Id with
-      | guid when guid = itemId ->
-        { e with Video = Video.resetTitle e.Video } 
-      | _ -> e
-
-    { m with Items =
-              m.Items
-              |> List.map resetTitle },
-    Cmd.none
+      { m with Form = Some model }, Cmd.map FormMsg message
+    | None -> m, Cmd.none
+  | Remove -> removeItem m, Cmd.none
   | ClearList ->
     { m with
         Items = List.empty
         StatusMsg = "List cleared" },
     Cmd.none
-  | CloseDialog -> { m with Dialog = None }, Cmd.none
-  | ItemEditor QueueItemDialog.Cancel -> m, Cmd.ofMsg CloseDialog
-  | ItemEditor QueueItemDialog.Submit ->
-    match m.Dialog with
-    | Some(Dialog.ItemEditor m') -> 
-      let isEmpty = m'.Title |> String.IsNullOrWhiteSpace
-      let setTitle e =
-        let update t e =
-          { e with Video = Video.updateTitle t e.Video }
-        
-        match e.Id with
-        | guid when guid = m'.Id -> update m'.Title e
-        | _ -> e
-
-      let items =
-        m.Items 
-        |> List.map setTitle
-
-      match isEmpty with
-      | false -> { m with Items = items }, Cmd.ofMsg CloseDialog
-      | true -> m, Cmd.none
-    | None -> m, Cmd.none
-  | ItemEditor msg' ->
-    match m.Dialog with
-    | Some(Dialog.ItemEditor m') ->
-      let detailModel, detailMsg = QueueItemDialog.update msg' m'
-
-      { m with Dialog = Some(Dialog.ItemEditor detailModel)}, detailMsg
-    | _ -> m, Cmd.none
-  | GoNext -> m, Cmd.none // managed by parent model
+  | Run -> m, Cmd.OfAsync.either run m RunSuccess RunFailed
+  | RunSuccess items -> runSuccess items m, Cmd.none
+  | RunFailed ex -> runFailed ex m, Cmd.none
   | GoRules -> m, Cmd.none // managed by parent model
-  | GoOptions -> m, Cmd.none // managed by parent model
 
 
 let bindings () =
@@ -189,38 +213,19 @@ let bindings () =
       (fun m -> m.Items),
       (fun e -> e.Id),
       (fun () ->
-        [ "Title" |> Binding.oneWay (fun (m, e) -> Video.getTitle m.Config.Rules e.Video)
-          "Remove" |> Binding.cmd (fun (_, e) -> Remove e.Id)
-          "Modify" |> Binding.cmd (fun (_, e) -> Modify e.Id)
-          "Reset"
-          |> Binding.cmdIf(fun (_, e) ->
-            match e.Video.Title with
-            | Some _ -> Some(ResetChange e.Id)
-            | None -> None
-          ) ]
-        )
+        [ "Id" |> Binding.oneWay (fun (_, e) -> e.Id)
+          "Title" |> Binding.oneWay (fun (m, e) -> Video.getTitle m.Config.Rules e) ] )
     )
-    "DetailFormVisible"
-    |> Binding.oneWay(
-      fun m ->
-        match m.Dialog with
-        | Some(Dialog.ItemEditor _) -> true
-        | _ -> false
-    )
-    "DetailForm"
-    |> Binding.subModelOpt (
-      (fun m ->
-        match m.Dialog with
-        | Some(Dialog.ItemEditor m') -> Some m'
-        | _ -> None),
-      snd,
-      ItemEditor,
-      QueueItemDialog.bindings
+    "SelectedId" |> Binding.twoWayOpt((fun m -> m.SelectedId), SetSelected)
+    "DetailForm" |> Binding.subModelOpt((fun m -> m.Form), snd, FormMsg, QueueDetailForm.bindings)
+    "Remove" |> Binding.cmdIf(fun m ->
+      match m.Items.IsEmpty, m.SelectedId with
+      | false, Some _ -> Some Remove
+      | _, _ -> None
     )
     "StatusMsg" |> Binding.oneWay(fun m -> m.StatusMsg)
     "Load" |> Binding.cmd RequestLoad
     "LoadFav" |> Binding.cmd LoadFavorite
-    "ClearList" |> Binding.cmd ClearList
-    "GoNext" |> Binding.cmd GoNext
-    "GoRules" |> Binding.cmd GoRules
-    "GoOptions" |> Binding.cmd GoOptions ]
+    "ClearList" |> Binding.cmdIf(fun m -> if m.Items.IsEmpty then None else Some ClearList)
+    "Run" |> Binding.cmd Run
+    "GoRules" |> Binding.cmd GoRules ]

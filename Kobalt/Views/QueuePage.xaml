@@ -7,72 +7,56 @@
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
     <UserControl.Resources>
-        <ResourceDictionary>
-            <BooleanToVisibilityConverter x:Key="VisibilityConverter"/>
-        </ResourceDictionary>
+        <Style TargetType="Button">
+            <Setter Property="Width" Value="74"/>
+            <Setter Property="Height" Value="22"/>
+        </Style>
     </UserControl.Resources>
     <Grid>
         <Grid>
             <Grid.RowDefinitions>
+                <RowDefinition Height="3*"/>
+                <RowDefinition Height="48"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="48"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
-            <Grid Grid.Row="0">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="48"/>
-                </Grid.RowDefinitions>
-                <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
-                    <ItemsControl
-                        ItemsSource="{Binding QueueItems}" >
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel>
-                                    <TextBlock Text="{Binding Title}" FontWeight="Bold"/>
-                                    <StackPanel Orientation="Horizontal">
-                                        <Button Content="Modify" Command="{Binding Modify}"/>
-                                        <Button Content="Reset" Command="{Binding Reset}"/>
-                                        <Button Content="Remove" Command="{Binding Remove}"/>
-                                    </StackPanel>
-                                </StackPanel>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
-                <StackPanel Grid.Row="1" Orientation="Horizontal">
-                    <Button Content="Clear" Command="{Binding ClearList}" Width="74" Height="22"/>
-                </StackPanel>
-            </Grid>
-            <Border Grid.Row="1" Background="WhiteSmoke">
+            <ListBox
+                Grid.Row="0"
+                ItemsSource="{Binding QueueItems}"
+                SelectedValuePath="Id"
+                SelectedValue="{Binding SelectedId}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel>
+                            <TextBlock Text="{Binding Title}" FontWeight="Bold"/>
+                            <!--<TextBlock Text="{Binding TitleStatus}" FontStyle="Italic"/>-->
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+            <StackPanel Grid.Row="1" Orientation="Horizontal">
+                <Button Content="R_emove" Command="{Binding Remove}"/>
+                <Button Content="_Clear" Command="{Binding ClearList}"/>
+            </StackPanel>
+            <local:DetailForm
+                Grid.Row="2"
+                DataContext="{Binding DetailForm}"/>
+            <Border Grid.Row="3" Background="WhiteSmoke">
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" HorizontalAlignment="Left">
-                        <Button Content="Rules" Command="{Binding GoRules}" Width="74" Height="22"/>
-                        <Button Content="Options" Command="{Binding GoOptions}" Width="74" Height="22"/>
+                        <Button Content="O_ptions" Command="{Binding GoRules}"/>
                     </StackPanel>
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button Content="Add..." Command="{Binding Load}" Width="74" Height="22"/>
-                        <Button Content="Quick Add" Command="{Binding LoadFav}" Width="74" Height="22"/>
-                        <Button Content="Next" Command="{Binding GoNext}" Width="74" Height="22"/>
+                        <Button Content="_Add..." Command="{Binding Load}"/>
+                        <Button Content="_Quick Add" Command="{Binding LoadFav}"/>
+                        <Button Content="_Run" Command="{Binding Run}"/>
                     </StackPanel>
                 </DockPanel>
             </Border>
-            <Border Grid.Row="2" BorderBrush="Black" BorderThickness="1" Background="WhiteSmoke">
+            <Border Grid.Row="4" BorderBrush="Black" BorderThickness="1" Background="WhiteSmoke">
                 <TextBlock Text="{Binding StatusMsg}"/>
             </Border> 
         </Grid>
-        <Border Visibility="{Binding DetailFormVisible, Converter={StaticResource VisibilityConverter}}">
-            <Border.Background>
-                <SolidColorBrush Color="SlateGray" Opacity="0.5"/>
-            </Border.Background>
-        </Border>
-        <local:DetailForm
-            Height="100" Width="300"
-            DataContext="{Binding DetailForm}"
-            d:DataContext="{Binding DataContext.DetailForm,
-                            RelativeSource={RelativeSource AncestorType=Grid}}"
-            Visibility="{Binding DataContext.DetailFormVisible,
-                         RelativeSource={RelativeSource AncestorType=Grid},
-                         Converter={StaticResource VisibilityConverter}}"/>
     </Grid>
 </UserControl>

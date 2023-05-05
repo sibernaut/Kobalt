@@ -46,5 +46,10 @@ let bindings () =
   [ "SearchFor" |> Binding.twoWay((fun m -> m.SearchFor), SetSearchFor)
     "ReplaceWith" |> Binding.twoWay((fun m -> m.ReplaceWith), SetReplaceWith) 
     "IsRegex" |> Binding.twoWay((fun m -> m.IsRegex), SetRegex) 
-    "Submit" |> Binding.cmd Submit // managed by parent
+    "Submit" |> Binding.cmdIf(fun m -> // managed by parent
+      let isEmpty = m.SearchFor |> String.IsNullOrWhiteSpace
+      match isEmpty with
+      | true -> None
+      | false -> Some Submit
+    )
     "Cancel" |> Binding.cmd Cancel ] // managed by parent

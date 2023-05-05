@@ -4,13 +4,17 @@
 
 namespace Kobalt.Core
 
+open System
 
 [<AutoOpen>]
 module Domains =
 
   type Video =
-    { FilePath: string 
-      Title: string option }
+    { Id: Guid
+      FilePath: string 
+      FileName: string
+      Title: string option 
+      ProcessOutput: string }
 
   type Pattern =
     { Search: string

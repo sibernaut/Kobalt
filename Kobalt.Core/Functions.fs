@@ -7,9 +7,9 @@ namespace Kobalt.Core
 open System
 open System.Diagnostics
 open System.IO
-type Rgx = System.Text.RegularExpressions.Regex
 open System.Text.Json
 open System.Text.Json.Serialization
+type Rgx = System.Text.RegularExpressions.Regex
 
 
 module Rule =
@@ -65,12 +65,17 @@ module Rules =
 
 module Video =
   let empty =
-    { FilePath = String.Empty
-      Title = None }
+    { Id = Guid.Empty
+      FilePath = String.Empty
+      FileName = String.Empty
+      Title = None 
+      ProcessOutput = String.Empty }
 
   let create path =
-    { FilePath = path
-      Title = None }
+    { empty with
+        Id = Guid.NewGuid()
+        FilePath = path
+        FileName = Path.GetFileName(path) }
 
   let getTitle rules video =
     match video.Title with
@@ -93,7 +98,8 @@ module Video =
       let tfile = TagLib.File.Create(path)
       tfile.Tag.Title <- title
       tfile.Save()
-      sprintf "%s" title
+      let output = sprintf "%s" title
+      { video with ProcessOutput = output }
     | ".mkv" ->
       let startinfo = 
         new ProcessStartInfo(
@@ -107,9 +113,11 @@ module Video =
       let ps = Process.Start(startinfo)
       ps.Start() |> ignore
       ps.WaitForExit()
-      sprintf "%s\r\n%s" title (ps.StandardOutput.ReadToEnd())
+      let output = sprintf "%s\r\n%s" title (ps.StandardOutput.ReadToEnd())
+      { video with ProcessOutput = output }
     | _ -> 
-      sprintf "Cannot process \"%s\". Filetype unsupported." title
+      let output = sprintf "Cannot process \"%s\". Filetype unsupported." title
+      { video with ProcessOutput = output }
 
 
 module Config =

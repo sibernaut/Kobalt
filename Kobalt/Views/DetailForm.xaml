@@ -5,15 +5,44 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Kobalt.Views"
              mc:Ignorable="d">
-    <Grid Background="White">
+    <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="48"/>
-            <RowDefinition Height="48"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <TextBox Text="{Binding TextInput, Mode=TwoWay}" Grid.Row="0"/>
-        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Content="Submit" Command="{Binding Submit}" Height="22" Width="74"/>
-            <Button Content="Cancel" Command="{Binding Cancel}" Height="22" Width="74"/>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <TextBlock
+            Grid.Row="0" Grid.Column="0"
+            Text="Title:"
+            HorizontalAlignment="Right"/>
+        <StackPanel 
+            Grid.Row="0" Grid.Column="1"
+            Orientation="Horizontal">
+            <TextBox
+                Grid.Row="0" Grid.Column="1"
+                MinWidth="250"
+                Text="{Binding Title, Mode=TwoWay}"/>
+            <Button Content="_Rename" Command="{Binding Rename}"/>
+            <Button Content="Rese_t" Command="{Binding Reset}"/>
         </StackPanel>
+        <TextBlock
+            Grid.Row="1" Grid.Column="0"
+            HorizontalAlignment="Right"
+            Text="Filename:"/>
+        <TextBlock
+            Grid.Row="1" Grid.Column="1"
+            Text="{Binding Filename}"/>
+        <TextBlock
+            Grid.Row="2" Grid.Column="0"
+            HorizontalAlignment="Right"
+            Text="Process Output:"/>
+        <TextBlock
+            Grid.Row="2" Grid.Column="1"
+            ToolTipService.ToolTip="{Binding ProcessOutput}"
+            Text="{Binding ProcessOutput}"/>
     </Grid>
 </UserControl>

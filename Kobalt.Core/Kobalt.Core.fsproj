@@ -9,12 +9,10 @@
   <ItemGroup>
     <Compile Include="DomainTypes.fs" />
     <Compile Include="Functions.fs" />
-    <Compile Include="QueueItemDialog.fs" />
+    <Compile Include="QueueDetailForm.fs" />
     <Compile Include="QueuePage.fs" />
     <Compile Include="RuleEditor.fs" />
     <Compile Include="RulesPage.fs" />
-    <Compile Include="OptionsPage.fs" />
-    <Compile Include="ProgressPage.fs" />
     <Compile Include="MainWindow.fs" />
     <Compile Include="App.fs" />
   </ItemGroup>
