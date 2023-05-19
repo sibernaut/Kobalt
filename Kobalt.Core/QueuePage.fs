@@ -217,6 +217,11 @@ let bindings () =
           "Title" |> Binding.oneWay (fun (m, e) -> Video.getTitle m.Config.Rules e) ] )
     )
     "SelectedId" |> Binding.twoWayOpt((fun m -> m.SelectedId), SetSelected)
+    "DetailFormVisible" |> Binding.oneWay(fun m -> 
+      match m.Form with
+      | Some _ -> true
+      | None -> false
+    )
     "DetailForm" |> Binding.subModelOpt((fun m -> m.Form), snd, FormMsg, QueueDetailForm.bindings)
     "Remove" |> Binding.cmdIf(fun m ->
       match m.Items.IsEmpty, m.SelectedId with

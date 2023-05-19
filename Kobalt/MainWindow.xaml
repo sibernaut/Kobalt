@@ -1,35 +1,27 @@
-﻿<Window x:Class="Kobalt.MainWindow"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:Kobalt"
-        xmlns:views="clr-namespace:Kobalt.Views"
-        xmlns:core="clr-namespace:Kobalt.Core;assembly=Kobalt.Core"
-        mc:Ignorable="d"
-        Title="MainWindow" 
-        MinHeight="330" MinWidth="450"
-        Height="400" Width="500"
-        d:DataContext="{x:Static core:MainWindow.designVm}">
-    <Window.Resources>
-        <ResourceDictionary>
-            <BooleanToVisibilityConverter x:Key="VisibilityConverter"/>
-        </ResourceDictionary>
-    </Window.Resources>
+﻿<Window
+    x:Class="Kobalt.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:core="clr-namespace:Kobalt.Core;assembly=Kobalt.Core"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="clr-namespace:Kobalt"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:views="clr-namespace:Kobalt.Views"
+    Title="MainWindow"
+    Width="730"
+    Height="450"
+    MinWidth="450"
+    MinHeight="330"
+    d:DataContext="{x:Static core:MainWindow.designVm}"
+    mc:Ignorable="d">
     <Grid>
         <views:QueuePage
+            d:DataContext="{Binding DataContext.QueuePage, RelativeSource={RelativeSource AncestorType=Grid}}"
             DataContext="{Binding QueuePage}"
-            d:DataContext="{Binding DataContext.QueuePage,
-                            RelativeSource={RelativeSource AncestorType=Grid}}"
-            Visibility="{Binding DataContext.QueuePageVisible,
-                         RelativeSource={RelativeSource AncestorType=Grid},
-                         Converter={StaticResource VisibilityConverter}}"/>
+            Visibility="{Binding DataContext.QueuePageVisible, RelativeSource={RelativeSource AncestorType=Grid}, Converter={StaticResource VisibilityConverter}}" />
         <views:RulesPage
+            d:DataContext="{Binding DataContext.RulesPage, RelativeSource={RelativeSource AncestorType=Grid}}"
             DataContext="{Binding RulesPage}"
-            d:DataContext="{Binding DataContext.RulesPage,
-                            RelativeSource={RelativeSource AncestorType=Grid}}"
-            Visibility="{Binding DataContext.RulesPageVisible,
-                         RelativeSource={RelativeSource AncestorType=Grid},
-                         Converter={StaticResource VisibilityConverter}}"/>
+            Visibility="{Binding DataContext.RulesPageVisible, RelativeSource={RelativeSource AncestorType=Grid}, Converter={StaticResource VisibilityConverter}}" />
     </Grid>
 </Window>
